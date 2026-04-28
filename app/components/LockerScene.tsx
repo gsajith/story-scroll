@@ -33,7 +33,7 @@ export default function LockerScene() {
 
     // --- Scene ---
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x111111);
+    scene.background = new THREE.Color(0xffffff);
 
     // --- Camera ---
     const camera = new THREE.PerspectiveCamera(FOV, W / H, 0.1, 100);
