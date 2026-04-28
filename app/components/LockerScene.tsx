@@ -51,7 +51,16 @@ export default function LockerScene() {
 
     // --- Loading manager — fires setSceneReady once all assets complete/fail ---
     const loadingManager = new THREE.LoadingManager();
-    loadingManager.onLoad = () => setSceneReady(true);
+    const markReady = () => setSceneReady(true);
+    loadingManager.onLoad = markReady;
+    // onError fires per-item in some Three.js versions and doesn't trigger onLoad,
+    // so track failures manually and show the scene regardless.
+    let pendingItems = 4; // 3 textures + 1 EXR
+    const itemDone = () => { if (--pendingItems <= 0) markReady(); };
+    loadingManager.onLoad = () => { pendingItems = 0; markReady(); };
+    loadingManager.onError = itemDone;
+    // Hard timeout so a stalled load never leaves the screen black
+    const readyTimeout = setTimeout(markReady, 8000);
 
     // --- Environment (IBL for metal reflections) ---
     const pmrem = new THREE.PMREMGenerator(renderer);
@@ -553,6 +562,7 @@ export default function LockerScene() {
     window.addEventListener("resize", onResize);
 
     return () => {
+      clearTimeout(readyTimeout);
       cancelAnimationFrame(raf);
       mount.removeEventListener("click", onClick);
       mount.removeEventListener("touchend", onTouch);
