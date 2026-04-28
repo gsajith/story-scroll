@@ -402,24 +402,31 @@ export default function LockerScene() {
     const camOffset = { x: 0, y: 0 };
     const camTarget = { x: 0, y: 0 };
     let camLerp = 0.04; // overridden to faster rate when gyro is active
-    const MAX_PEEK = 0.7;
+    const MAX_PEEK = 1;
     const EDGE_ZONE = 0.18;
 
     const setEdgePeekTarget = (nx: number, ny: number) => {
-      let tx = 0,
-        ty = 0;
-      if (nx < EDGE_ZONE) {
-        tx = -((EDGE_ZONE - nx) / EDGE_ZONE) * MAX_PEEK;
-      } else if (nx > 1 - EDGE_ZONE) {
-        tx = ((nx - (1 - EDGE_ZONE)) / EDGE_ZONE) * MAX_PEEK;
-      }
-      if (ny < EDGE_ZONE) {
-        ty = ((EDGE_ZONE - ny) / EDGE_ZONE) * MAX_PEEK;
-      } else if (ny > 1 - EDGE_ZONE) {
-        ty = -((ny - (1 - EDGE_ZONE)) / EDGE_ZONE) * MAX_PEEK;
-      }
-      camTarget.x = tx;
-      camTarget.y = ty;
+      // Signed deviation from center: -1=left/top, +1=right/bottom
+      const cx = (nx - 0.5) * 2;
+      const cy = (ny - 0.5) * 2;
+      // Edge strength per axis: 0 in center, 1 at the screen edge
+      const sx =
+        nx < EDGE_ZONE
+          ? (EDGE_ZONE - nx) / EDGE_ZONE
+          : nx > 1 - EDGE_ZONE
+            ? (nx - (1 - EDGE_ZONE)) / EDGE_ZONE
+            : 0;
+      const sy =
+        ny < EDGE_ZONE
+          ? (EDGE_ZONE - ny) / EDGE_ZONE
+          : ny > 1 - EDGE_ZONE
+            ? (ny - (1 - EDGE_ZONE)) / EDGE_ZONE
+            : 0;
+      // Use the dominant edge strength for both axes so that e.g. being near
+      // the top edge while 20% right of center gives both upward and rightward peek.
+      const s = Math.max(sx, sy);
+      camTarget.x = cx * s * MAX_PEEK;
+      camTarget.y = -cy * s * MAX_PEEK;
     };
 
     // --- Interaction ---
