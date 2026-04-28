@@ -6,7 +6,7 @@ import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment
 
 const LW = 2.75; // locker width
 const LH = 2.0; // locker height
-const LD = 0.6; // locker depth
+const LD = 0.8; // locker depth
 const GAP = 0.08;
 const DOOR_T = 0.1;
 const WALL_T = 0.0; // cabinet wall thickness — no front face, so interior is open
@@ -318,6 +318,29 @@ export default function LockerScene() {
       }
     }
 
+    // --- Camera peek state ---
+    const BASE_CAM = { x: camera.position.x, y: camera.position.y };
+    const camOffset = { x: 0, y: 0 };
+    const camTarget = { x: 0, y: 0 };
+    const MAX_PEEK = 0.7;
+    const EDGE_ZONE = 0.18;
+
+    const setEdgePeekTarget = (nx: number, ny: number) => {
+      let tx = 0, ty = 0;
+      if (nx < EDGE_ZONE) {
+        tx = -((EDGE_ZONE - nx) / EDGE_ZONE) * MAX_PEEK;
+      } else if (nx > 1 - EDGE_ZONE) {
+        tx = ((nx - (1 - EDGE_ZONE)) / EDGE_ZONE) * MAX_PEEK;
+      }
+      if (ny < EDGE_ZONE) {
+        ty = ((EDGE_ZONE - ny) / EDGE_ZONE) * MAX_PEEK;
+      } else if (ny > 1 - EDGE_ZONE) {
+        ty = -((ny - (1 - EDGE_ZONE)) / EDGE_ZONE) * MAX_PEEK;
+      }
+      camTarget.x = tx;
+      camTarget.y = ty;
+    };
+
     // --- Interaction ---
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
@@ -359,16 +382,55 @@ export default function LockerScene() {
 
     const onMouseMove = (e: MouseEvent) => {
       const rect = mount.getBoundingClientRect();
-      pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      const nx = (e.clientX - rect.left) / rect.width;
+      const ny = (e.clientY - rect.top) / rect.height;
+      pointer.x = nx * 2 - 1;
+      pointer.y = -(ny * 2 - 1);
       raycaster.setFromCamera(pointer, camera);
       const doorMeshes = lockers
         .map((l) => l.pivot.children[0])
         .filter((c): c is THREE.Mesh => c instanceof THREE.Mesh);
       const hits = raycaster.intersectObjects(doorMeshes);
       mount.style.cursor = hits.length > 0 ? "pointer" : "default";
+      setEdgePeekTarget(nx, ny);
+    };
+    const onMouseLeave = () => {
+      camTarget.x = 0;
+      camTarget.y = 0;
     };
     mount.addEventListener("mousemove", onMouseMove);
+    mount.addEventListener("mouseleave", onMouseLeave);
+
+    // --- Gyroscope (mobile) ---
+    const onDeviceOrientation = (e: DeviceOrientationEvent) => {
+      if (e.gamma === null || e.beta === null) return;
+      // gamma: left-right tilt (-90..90), beta: front-back tilt (-180..180)
+      // Typical portrait hold is beta ~45-60°; treat 45° as neutral
+      camTarget.x = Math.max(-1, Math.min(1, e.gamma / 25)) * MAX_PEEK;
+      camTarget.y = Math.max(-1, Math.min(1, (e.beta - 45) / 25)) * MAX_PEEK * -1;
+    };
+
+    // iOS 13+ requires permission; request on first touch
+    let gyroAttached = false;
+    const attachGyro = () => {
+      if (gyroAttached) return;
+      gyroAttached = true;
+      type DOE = typeof DeviceOrientationEvent & {
+        requestPermission?: () => Promise<string>;
+      };
+      const DOE = DeviceOrientationEvent as DOE;
+      if (typeof DOE.requestPermission === "function") {
+        DOE.requestPermission()
+          .then((state: string) => {
+            if (state === "granted")
+              window.addEventListener("deviceorientation", onDeviceOrientation);
+          })
+          .catch(() => {});
+      } else {
+        window.addEventListener("deviceorientation", onDeviceOrientation);
+      }
+    };
+    window.addEventListener("touchstart", attachGyro, { once: true });
 
     // --- Animation ---
     let raf: number;
@@ -381,6 +443,11 @@ export default function LockerScene() {
           locker.pivot.rotation.y = locker.currentAngle;
         }
       }
+      // Smooth camera peek
+      camOffset.x += (camTarget.x - camOffset.x) * 0.04;
+      camOffset.y += (camTarget.y - camOffset.y) * 0.04;
+      camera.position.x = BASE_CAM.x + camOffset.x;
+      camera.position.y = BASE_CAM.y + camOffset.y;
       renderer.render(scene, camera);
     };
     animate();
@@ -400,6 +467,9 @@ export default function LockerScene() {
       mount.removeEventListener("click", onClick);
       mount.removeEventListener("touchend", onTouch);
       mount.removeEventListener("mousemove", onMouseMove);
+      mount.removeEventListener("mouseleave", onMouseLeave);
+      window.removeEventListener("touchstart", attachGyro);
+      window.removeEventListener("deviceorientation", onDeviceOrientation);
       window.removeEventListener("resize", onResize);
       renderer.dispose();
       if (mount.contains(renderer.domElement)) {
