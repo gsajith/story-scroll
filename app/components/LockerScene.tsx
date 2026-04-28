@@ -400,7 +400,14 @@ export default function LockerScene() {
         const idx = doorMeshes.indexOf(hits[0].object as THREE.Mesh);
         if (idx !== -1) {
           const locker = lockers[idx];
-          if (locker.locked) return;
+          if (locker.locked) {
+            // Nudge ~25% toward closed then spring back
+            locker.targetAngle = -Math.PI * 0.46;
+            setTimeout(() => {
+              locker.targetAngle = -Math.PI * 0.5;
+            }, 320);
+            return;
+          }
           locker.isOpen = !locker.isOpen;
           locker.targetAngle = locker.isOpen ? -Math.PI * 0.5 : 0;
         }
