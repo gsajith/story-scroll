@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import GUI from "lil-gui";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { EXRLoader } from "three/examples/jsm/loaders/EXRLoader.js";
@@ -117,40 +116,6 @@ export default function LockerScene() {
     const frontLight = new THREE.DirectionalLight(0xff8800, 0.18);
     frontLight.position.set(1.5, 0, 10);
     scene.add(frontLight);
-
-    // --- Debug GUI ---
-    const gui = new GUI({ title: "Lights" });
-    if (process.env.NODE_ENV !== "production") {
-      const addLight = (name: string, light: THREE.Light) => {
-        const f = gui.addFolder(name);
-        const state = { enabled: true };
-        let savedIntensity = light.intensity;
-        f.add(state, "enabled").onChange((v: boolean) => {
-          if (v) {
-            light.intensity = savedIntensity;
-          } else {
-            savedIntensity = light.intensity;
-            light.intensity = 0;
-          }
-        });
-        f.add(light, "intensity", 0, 30, 0.05)
-          .listen()
-          .onChange((v: number) => {
-            if (state.enabled) savedIntensity = v;
-          });
-        f.addColor(light, "color");
-        if (light instanceof THREE.DirectionalLight) {
-          f.add(light.position, "x", -20, 20, 0.1).name("pos x");
-          f.add(light.position, "y", -20, 20, 0.1).name("pos y");
-          f.add(light.position, "z", -20, 20, 0.1).name("pos z");
-        }
-        f.close();
-      };
-      addLight("key", keyLight);
-      addLight("fill", fillLight);
-      addLight("rim", rimLight);
-      addLight("front", frontLight);
-    }
 
     // --- Materials ---
     const whiteMetal = {
@@ -576,7 +541,6 @@ export default function LockerScene() {
     window.addEventListener("resize", onResize);
 
     return () => {
-      gui.destroy();
       clearTimeout(readyTimeout);
       cancelAnimationFrame(raf);
       mount.removeEventListener("click", onClick);
