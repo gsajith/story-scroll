@@ -3,10 +3,12 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
+import { EXRLoader } from "three/examples/jsm/loaders/EXRLoader.js";
+import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 
 const LW = 2.75; // locker width
 const LH = 2.0; // locker height
-const LD = 1.4; // locker depth
+const LD = 1; // locker depth
 const GAP = 0.08;
 const DOOR_T = 0.1;
 const WALL_T = 0.03; // cabinet wall thickness — no front face, so interior is open
@@ -49,8 +51,21 @@ export default function LockerScene() {
     // --- Environment (IBL for metal reflections) ---
     const pmrem = new THREE.PMREMGenerator(renderer);
     pmrem.compileEquirectangularShader();
-    scene.environment = pmrem.fromScene(new RoomEnvironment()).texture;
-    pmrem.dispose();
+
+    new EXRLoader().load(
+      "/environment.exr",
+      (texture) => {
+        scene.environment = pmrem.fromEquirectangular(texture).texture;
+        texture.dispose();
+        pmrem.dispose();
+      },
+      undefined,
+      () => {
+        // Fallback to RoomEnvironment if EXR is missing or invalid
+        scene.environment = pmrem.fromScene(new RoomEnvironment()).texture;
+        pmrem.dispose();
+      },
+    );
 
     // --- Lighting ---
     const ambient = new THREE.AmbientLight(0xffffff, 0.04);
@@ -67,7 +82,7 @@ export default function LockerScene() {
     keyLight.shadow.camera.right = 20;
     keyLight.shadow.camera.top = 20;
     keyLight.shadow.camera.bottom = -20;
-    keyLight.shadow.radius = 8;
+    keyLight.shadow.radius = 18;
     keyLight.shadow.bias = -0.001;
     scene.add(keyLight);
 
@@ -92,7 +107,7 @@ export default function LockerScene() {
       color: 0xb8b2ac,
       roughness: 0.6,
       metalness: 0.25,
-      envMapIntensity: 0.5,
+      envMapIntensity: 1,
     };
     const bodyMat = new THREE.MeshStandardMaterial(whiteMetal);
     const doorFrontMat = new THREE.MeshStandardMaterial({
@@ -113,9 +128,8 @@ export default function LockerScene() {
     // Shiny silver — handle and label frame
     const silverMat = new THREE.MeshStandardMaterial({
       color: 0xd4d4d4,
-      roughness: 0.04,
-      metalness: 1.0,
-      envMapIntensity: 4.0,
+      roughness: 0.0,
+      metalness: 1,
     });
     const handleMat = silverMat;
     const labelFrameMat = silverMat;
@@ -129,49 +143,19 @@ export default function LockerScene() {
 
     // Screen placeholder
     const screenMat = new THREE.MeshStandardMaterial({
-      color: 0x1a2840,
-      roughness: 0.5,
-      metalness: 0.05,
-      emissive: new THREE.Color(0x0c1e38),
-      emissiveIntensity: 3.0,
+      color: 0x38df92,
+      roughness: 0.1,
+      metalness: 0.5,
     });
 
     // --- Shared geometries ---
-
     // Cabinet shell — 5 panels, NO front face (opening is left empty)
     const wallSideGeo = new THREE.BoxGeometry(WALL_T, LH, LD);
     const wallTopGeo = new THREE.BoxGeometry(LW, WALL_T, LD);
     const wallBackGeo = new THREE.BoxGeometry(LW, LH, WALL_T);
 
-    // BoxGeometry face group order: [+x, -x, +y, -y, +z, -z]
-    // Interior-facing face gets dark interiorMat
-    // leftWall: interior face is +x (index 0)
-    const leftWallMats = [bodyMat, bodyMat, bodyMat, bodyMat, bodyMat, bodyMat];
-    // rightWall: interior face is -x (index 1)
-    const rightWallMats = [
-      bodyMat,
-      bodyMat,
-      bodyMat,
-      bodyMat,
-      bodyMat,
-      bodyMat,
-    ];
-    // topWall: interior face is -y (index 3)
-    const topWallMats = [bodyMat, bodyMat, bodyMat, bodyMat, bodyMat, bodyMat];
-    // bottomWall: interior face is +y (index 2)
-    const bottomWallMats = [
-      bodyMat,
-      bodyMat,
-      bodyMat,
-      bodyMat,
-      bodyMat,
-      bodyMat,
-    ];
-    // backWall: interior face is +z (index 4)
-    const backWallMats = [bodyMat, bodyMat, bodyMat, bodyMat, bodyMat, bodyMat];
-
     // Door
-    const doorGeo = new THREE.BoxGeometry(LW, LH, DOOR_T);
+    const doorGeo = new RoundedBoxGeometry(LW, LH, DOOR_T, 5, 0.01);
     const doorMaterials = [
       doorEdgeMat, // +x
       doorEdgeMat, // -x
@@ -182,10 +166,12 @@ export default function LockerScene() {
     ];
 
     // Door details
-    const handleBarGeo = new THREE.BoxGeometry(LW * 0.25, LH * 0.035, 0.068);
+    const handleBarGeo = new THREE.BoxGeometry(LW * 0.35, LH * 0.035, 0.068);
     const handleGeo = new THREE.BoxGeometry(LH * 0.035, LH * 0.035, 0.068);
-    const labelFrameGeo = new THREE.BoxGeometry(LW * 0.17, LH * 0.15, 0.055);
-    const labelPaperGeo = new THREE.PlaneGeometry(LW * 0.14, LH * 0.12);
+    const labelFrameGeo = new RoundedBoxGeometry(LW * 0.23, LH * 0.19, 0.025);
+    const labelPaperGeo = new THREE.PlaneGeometry(LW * 0.19, LH * 0.15);
+    const doorHingeMatGeo = new RoundedBoxGeometry(LW * 0.07, LH * 0.2, 0.055);
+    const doorHingeGeo = new RoundedBoxGeometry(LW * 0.15, LH * 0.06, 0.068);
 
     // Interior screen
     const screenGeo = new THREE.PlaneGeometry(LW * 0.65, LH * 0.58);
@@ -213,7 +199,7 @@ export default function LockerScene() {
     for (let c = 0; c < COLS - 1; c++) {
       const xCenter = (c - (COLS - 1) / 2) * CELL_W + CELL_W / 2;
       const strip = new THREE.Mesh(
-        new THREE.PlaneGeometry(GAP - 0.015, totalH),
+        new THREE.PlaneGeometry(GAP - 0.003, totalH),
         gapMat,
       );
       strip.position.set(xCenter, 0, GAP_Z);
@@ -225,7 +211,7 @@ export default function LockerScene() {
     for (let r = 0; r < ROWS - 1; r++) {
       const yCenter = (r - (ROWS - 1) / 2) * CELL_H + CELL_H / 2;
       const strip = new THREE.Mesh(
-        new THREE.PlaneGeometry(totalW, GAP - 0.015),
+        new THREE.PlaneGeometry(totalW, GAP - 0.003),
         gapMat,
       );
       strip.position.set(0, yCenter, GAP_Z - 0.001);
@@ -252,31 +238,31 @@ export default function LockerScene() {
         );
 
         // ---- Cabinet shell (hollow — open front) ----
-        const leftWall = new THREE.Mesh(wallSideGeo, leftWallMats);
+        const leftWall = new THREE.Mesh(wallSideGeo, bodyMat);
         leftWall.position.set(-LW / 2 + WALL_T / 2, 0, -LD / 2);
         leftWall.castShadow = true;
         leftWall.receiveShadow = true;
         group.add(leftWall);
 
-        const rightWall = new THREE.Mesh(wallSideGeo, rightWallMats);
+        const rightWall = new THREE.Mesh(wallSideGeo, bodyMat);
         rightWall.position.set(LW / 2 - WALL_T / 2, 0, -LD / 2);
         rightWall.castShadow = true;
         rightWall.receiveShadow = true;
         group.add(rightWall);
 
-        const topWall = new THREE.Mesh(wallTopGeo, topWallMats);
+        const topWall = new THREE.Mesh(wallTopGeo, bodyMat);
         topWall.position.set(0, LH / 2 - WALL_T / 2, -LD / 2);
         topWall.castShadow = true;
         topWall.receiveShadow = true;
         group.add(topWall);
 
-        const bottomWall = new THREE.Mesh(wallTopGeo, bottomWallMats);
+        const bottomWall = new THREE.Mesh(wallTopGeo, bodyMat);
         bottomWall.position.set(0, -LH / 2 + WALL_T / 2, -LD / 2);
         bottomWall.castShadow = true;
         bottomWall.receiveShadow = true;
         group.add(bottomWall);
 
-        const backWall = new THREE.Mesh(wallBackGeo, backWallMats);
+        const backWall = new THREE.Mesh(wallBackGeo, bodyMat);
         backWall.position.set(0, 0, -LD + WALL_T / 2);
         backWall.castShadow = true;
         backWall.receiveShadow = true;
@@ -301,14 +287,41 @@ export default function LockerScene() {
         // Handle bar + mounting plates
         const handleBar = new THREE.Mesh(handleBarGeo, handleMat);
         handleBar.position.set(LW / 2, LH * -0.12, DOOR_T / 2 + 0.068);
+        handleBar.receiveShadow = true;
         handleBar.castShadow = true;
         pivot.add(handleBar);
         const handleBarMount1 = new THREE.Mesh(handleGeo, handleMat);
         const handleBarMount2 = new THREE.Mesh(handleGeo, handleMat);
-        handleBarMount1.position.set(LW / 2 - 0.3, LH * -0.12, DOOR_T / 2);
-        handleBarMount2.position.set(LW / 2 + 0.3, LH * -0.12, DOOR_T / 2);
+        handleBarMount1.position.set(LW / 2 - 0.45, LH * -0.12, DOOR_T / 2);
+        handleBarMount2.position.set(LW / 2 + 0.45, LH * -0.12, DOOR_T / 2);
+        handleBarMount1.castShadow = true;
+        handleBarMount1.receiveShadow = true;
+        handleBarMount2.castShadow = true;
+        handleBarMount2.receiveShadow = true;
         pivot.add(handleBarMount1);
         pivot.add(handleBarMount2);
+
+        // Pivoting door hinge
+        const doorHinge = new THREE.Mesh(doorHingeGeo, silverMat);
+        doorHinge.position.set(LW * 0.065, LH * -0.32, DOOR_T * -0.7);
+        doorHinge.receiveShadow = true;
+        doorHinge.castShadow = true;
+        pivot.add(doorHinge);
+        const doorHinge2 = new THREE.Mesh(doorHingeGeo, silverMat);
+        doorHinge2.position.set(LW * 0.065, LH * 0.32, DOOR_T * -0.7);
+        doorHinge2.receiveShadow = true;
+        doorHinge2.castShadow = true;
+        pivot.add(doorHinge2);
+        const doorHingeMat = new THREE.Mesh(doorHingeMatGeo, silverMat);
+        doorHingeMat.position.set(LW * 0.115, LH * -0.32, DOOR_T * -0.55);
+        doorHingeMat.receiveShadow = true;
+        doorHingeMat.castShadow = true;
+        pivot.add(doorHingeMat);
+        const doorHingeMat2 = new THREE.Mesh(doorHingeMatGeo, silverMat);
+        doorHingeMat2.position.set(LW * 0.115, LH * 0.32, DOOR_T * -0.55);
+        doorHingeMat2.receiveShadow = true;
+        doorHingeMat2.castShadow = true;
+        pivot.add(doorHingeMat2);
 
         // Label holder
         const labelFrame = new THREE.Mesh(labelFrameGeo, labelFrameMat);
@@ -409,7 +422,9 @@ export default function LockerScene() {
             return;
           }
           locker.isOpen = !locker.isOpen;
-          locker.targetAngle = locker.isOpen ? -Math.PI * 0.5 : 0;
+          locker.targetAngle = locker.isOpen
+            ? -Math.PI * (0.48 + Math.random() * 0.1)
+            : 0;
         }
       }
     };
