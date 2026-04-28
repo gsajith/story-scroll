@@ -55,9 +55,14 @@ export default function LockerScene() {
     loadingManager.onLoad = markReady;
     // onError fires per-item in some Three.js versions and doesn't trigger onLoad,
     // so track failures manually and show the scene regardless.
-    let pendingItems = 4; // 3 textures + 1 EXR
-    const itemDone = () => { if (--pendingItems <= 0) markReady(); };
-    loadingManager.onLoad = () => { pendingItems = 0; markReady(); };
+    let pendingItems = 1; // 1 EXR
+    const itemDone = () => {
+      if (--pendingItems <= 0) markReady();
+    };
+    loadingManager.onLoad = () => {
+      pendingItems = 0;
+      markReady();
+    };
     loadingManager.onError = itemDone;
     // Hard timeout so a stalled load never leaves the screen black
     const readyTimeout = setTimeout(markReady, 8000);
@@ -115,30 +120,12 @@ export default function LockerScene() {
     frontLight.position.set(0, 0, 10);
     scene.add(frontLight);
 
-    // --- Textures ---
-    const texLoader = new THREE.TextureLoader(loadingManager);
-    const normalTex = texLoader.load(
-      "/textures/green_metal_rust_nor_gl_2k.png",
-    );
-    const roughTex = texLoader.load("/textures/green_metal_rust_rough_2k.png");
-    const aoTex = texLoader.load("/textures/green_metal_rust_ao_2k.png");
-    for (const t of [normalTex, roughTex, aoTex]) {
-      t.wrapS = t.wrapT = THREE.RepeatWrapping;
-      t.repeat.set(3, 2); // tile across each locker face so the grain reads at the right scale
-    }
-
     // --- Materials ---
-    // Painted steel locker body — color kept white; texture maps add surface detail only
     const whiteMetal = {
       color: 0xc8c4be,
       roughness: 0.6,
       metalness: 0.25,
       envMapIntensity: 1,
-      normalMap: normalTex,
-      normalScale: new THREE.Vector2(1.2, 1.2),
-      roughnessMap: roughTex,
-      aoMap: aoTex,
-      aoMapIntensity: 1.0,
     };
     const bodyMat = new THREE.MeshStandardMaterial(whiteMetal);
     const doorFrontMat = new THREE.MeshStandardMaterial({
@@ -188,11 +175,6 @@ export default function LockerScene() {
     // Door
     const doorGeo = new RoundedBoxGeometry(LW, LH, DOOR_T, 5, 0.01);
 
-    // aoMap reads from uv1 — copy uv0 → uv1 on all textured geometries
-    for (const geo of [wallSideGeo, wallTopGeo, wallBackGeo, doorGeo]) {
-      const uv = geo.getAttribute("uv");
-      if (uv) geo.setAttribute("uv1", uv);
-    }
     const doorMaterials = [
       doorEdgeMat, // +x
       doorEdgeMat, // -x
