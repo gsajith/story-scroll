@@ -236,6 +236,7 @@ export default function LockerScene() {
     type Locker = {
       pivot: THREE.Group;
       isOpen: boolean;
+      locked: boolean; // permanently open, not clickable
       targetAngle: number;
       currentAngle: number;
     };
@@ -327,10 +328,31 @@ export default function LockerScene() {
         lockers.push({
           pivot,
           isOpen: false,
+          locked: false,
           targetAngle: 0,
           currentAngle: 0,
         });
       }
+    }
+
+    // --- Initial open state ---
+    const openLocker = (locker: (typeof lockers)[0]) => {
+      locker.isOpen = true;
+      locker.targetAngle = -Math.PI * 0.5;
+      locker.currentAngle = -Math.PI * 0.5;
+      locker.pivot.rotation.y = -Math.PI * 0.5;
+    };
+
+    const centerIdx = Math.floor(ROWS / 2) * COLS + Math.floor(COLS / 2);
+    openLocker(lockers[centerIdx]);
+    lockers[centerIdx].locked = true;
+
+    // 1–3 random other lockers start open
+    const extraCount = 3 + Math.floor(Math.random() * 2);
+    const candidates = lockers.map((_, i) => i).filter((i) => i !== centerIdx);
+    for (let i = 0; i < extraCount; i++) {
+      const pick = Math.floor(Math.random() * candidates.length);
+      openLocker(lockers[candidates.splice(pick, 1)[0]]);
     }
 
     // --- Camera peek state ---
@@ -378,6 +400,7 @@ export default function LockerScene() {
         const idx = doorMeshes.indexOf(hits[0].object as THREE.Mesh);
         if (idx !== -1) {
           const locker = lockers[idx];
+          if (locker.locked) return;
           locker.isOpen = !locker.isOpen;
           locker.targetAngle = locker.isOpen ? -Math.PI * 0.5 : 0;
         }
