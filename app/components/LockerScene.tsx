@@ -57,7 +57,7 @@ export default function LockerScene() {
     scene.add(ambient);
 
     const keyLight = new THREE.DirectionalLight(0xfff5e8, 9.5);
-    keyLight.position.set(0.5, 1.5, 10);
+    keyLight.position.set(1.5, 1.5, 10);
     keyLight.castShadow = true;
     keyLight.shadow.mapSize.set(2048, 2048);
     keyLight.shadow.camera.near = 1;
@@ -79,7 +79,7 @@ export default function LockerScene() {
     const whiteMetal = {
       color: 0xc3bcb6,
       roughness: 0.65,
-      metalness: 0.18,
+      metalness: 0.0,
     };
     const bodyMat = new THREE.MeshStandardMaterial(whiteMetal);
     const doorFrontMat = new THREE.MeshStandardMaterial({
