@@ -322,6 +322,7 @@ export default function LockerScene() {
     const BASE_CAM = { x: camera.position.x, y: camera.position.y };
     const camOffset = { x: 0, y: 0 };
     const camTarget = { x: 0, y: 0 };
+    let camLerp = 0.04; // overridden to faster rate when gyro is active
     const MAX_PEEK = 0.7;
     const EDGE_ZONE = 0.18;
 
@@ -411,6 +412,7 @@ export default function LockerScene() {
       camTarget.x = Math.max(-1, Math.min(1, e.gamma / 25)) * MAX_PEEK;
       camTarget.y =
         Math.max(-1, Math.min(1, (e.beta - 45) / 25)) * MAX_PEEK * -1;
+      camLerp = 0.18; // snappier tracking for continuous gyro input
     };
 
     // iOS 13+ requires permission granted synchronously from a touch/click handler
@@ -444,8 +446,8 @@ export default function LockerScene() {
         }
       }
       // Smooth camera peek
-      camOffset.x += (camTarget.x - camOffset.x) * 0.04;
-      camOffset.y += (camTarget.y - camOffset.y) * 0.04;
+      camOffset.x += (camTarget.x - camOffset.x) * camLerp;
+      camOffset.y += (camTarget.y - camOffset.y) * camLerp;
       camera.position.x = BASE_CAM.x + camOffset.x;
       camera.position.y = BASE_CAM.y + camOffset.y;
       renderer.render(scene, camera);
