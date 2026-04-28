@@ -46,7 +46,7 @@ export default function LockerScene() {
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 0.9;
+    renderer.toneMappingExposure = 0.8;
     mount.appendChild(renderer.domElement);
 
     // --- Loading manager — fires setSceneReady once all assets complete/fail ---
