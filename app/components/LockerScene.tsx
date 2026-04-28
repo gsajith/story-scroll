@@ -119,8 +119,8 @@ export default function LockerScene() {
     scene.add(frontLight);
 
     // --- Debug GUI ---
+    const gui = new GUI({ title: "Lights" });
     if (process.env.NODE_ENV !== "production") {
-      const gui = new GUI({ title: "Lights" });
       const addLight = (name: string, light: THREE.Light) => {
         const f = gui.addFolder(name);
         const state = { enabled: true };
