@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { EXRLoader } from "three/examples/jsm/loaders/EXRLoader.js";
@@ -24,6 +24,7 @@ const BACK_INTERIOR_Z = -LD + WALL_T;
 
 export default function LockerScene() {
   const mountRef = useRef<HTMLDivElement>(null);
+  const [sceneReady, setSceneReady] = useState(false);
 
   useEffect(() => {
     const mount = mountRef.current!;
@@ -48,11 +49,15 @@ export default function LockerScene() {
     renderer.toneMappingExposure = 0.9;
     mount.appendChild(renderer.domElement);
 
+    // --- Loading manager — fires setSceneReady once all assets complete/fail ---
+    const loadingManager = new THREE.LoadingManager();
+    loadingManager.onLoad = () => setSceneReady(true);
+
     // --- Environment (IBL for metal reflections) ---
     const pmrem = new THREE.PMREMGenerator(renderer);
     pmrem.compileEquirectangularShader();
 
-    new EXRLoader().load(
+    new EXRLoader(loadingManager).load(
       "/environment.exr",
       (texture) => {
         scene.environment = pmrem.fromEquirectangular(texture).texture;
@@ -101,13 +106,30 @@ export default function LockerScene() {
     frontLight.position.set(0, 0, 10);
     scene.add(frontLight);
 
+    // --- Textures ---
+    const texLoader = new THREE.TextureLoader(loadingManager);
+    const normalTex = texLoader.load(
+      "/textures/green_metal_rust_nor_gl_2k.png",
+    );
+    const roughTex = texLoader.load("/textures/green_metal_rust_rough_2k.png");
+    const aoTex = texLoader.load("/textures/green_metal_rust_ao_2k.png");
+    for (const t of [normalTex, roughTex, aoTex]) {
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.repeat.set(3, 2); // tile across each locker face so the grain reads at the right scale
+    }
+
     // --- Materials ---
-    // Painted steel locker body
+    // Painted steel locker body — color kept white; texture maps add surface detail only
     const whiteMetal = {
-      color: 0xb8b2ac,
+      color: 0xc8c4be,
       roughness: 0.6,
       metalness: 0.25,
       envMapIntensity: 1,
+      normalMap: normalTex,
+      normalScale: new THREE.Vector2(1.2, 1.2),
+      roughnessMap: roughTex,
+      aoMap: aoTex,
+      aoMapIntensity: 1.0,
     };
     const bodyMat = new THREE.MeshStandardMaterial(whiteMetal);
     const doorFrontMat = new THREE.MeshStandardMaterial({
@@ -156,6 +178,12 @@ export default function LockerScene() {
 
     // Door
     const doorGeo = new RoundedBoxGeometry(LW, LH, DOOR_T, 5, 0.01);
+
+    // aoMap reads from uv1 — copy uv0 → uv1 on all textured geometries
+    for (const geo of [wallSideGeo, wallTopGeo, wallBackGeo, doorGeo]) {
+      const uv = geo.getAttribute("uv");
+      if (uv) geo.setAttribute("uv1", uv);
+    }
     const doorMaterials = [
       doorEdgeMat, // +x
       doorEdgeMat, // -x
@@ -541,13 +569,44 @@ export default function LockerScene() {
 
   return (
     <div
-      ref={mountRef}
       style={{
         width: "100vw",
         height: "100vh",
         overflow: "hidden",
-        display: "block",
-      }}
-    />
+        position: "relative",
+      }}>
+      <div
+        ref={mountRef}
+        style={{
+          width: "100%",
+          height: "100%",
+          opacity: sceneReady ? 1 : 0,
+          transition: "opacity 0.4s ease",
+        }}
+      />
+      {!sceneReady && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "#fff",
+          }}>
+          <div
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: "50%",
+              border: "3px solid #aaa",
+              borderTopColor: "#333",
+              animation: "spin 0.8s linear infinite",
+            }}
+          />
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      )}
+    </div>
   );
 }
