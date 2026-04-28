@@ -88,7 +88,7 @@ export default function LockerScene() {
 
     // --- Lighting ---
     // Key light: upper-left, strongly off-axis to create directional shading across locker faces
-    const keyLight = new THREE.DirectionalLight(0xf5d5b2, 14.5);
+    const keyLight = new THREE.DirectionalLight(0xf5d5b2, 8.5);
     keyLight.position.set(-2, 3, 8);
     keyLight.castShadow = true;
     keyLight.shadow.mapSize.set(2048, 2048);
@@ -388,8 +388,11 @@ export default function LockerScene() {
     const BASE_CAM = { x: camera.position.x, y: camera.position.y };
     const camOffset = { x: 0, y: 0 };
     const camTarget = { x: 0, y: 0 };
+    const camRotOffset = { x: 0, y: 0 };
+    const camRotTarget = { x: 0, y: 0 };
     let camLerp = 0.04; // overridden to faster rate when gyro is active
     const MAX_PEEK = 0.7;
+    const MAX_TILT = 0.06; // radians (~3.4°) for gyro tilt
     const EDGE_ZONE = 0.18;
 
     const setEdgePeekTarget = (nx: number, ny: number) => {
@@ -484,10 +487,10 @@ export default function LockerScene() {
     const onDeviceOrientation = (e: DeviceOrientationEvent) => {
       if (e.gamma === null || e.beta === null) return;
       // gamma: left-right tilt (-90..90), beta: front-back tilt (-180..180)
-      // Typical portrait hold is beta ~45-60°; treat 45° as neutral
-      camTarget.x = Math.max(-1, Math.min(1, e.gamma / 25)) * MAX_PEEK;
-      camTarget.y =
-        Math.max(-1, Math.min(1, (e.beta - 45) / 25)) * MAX_PEEK * -1;
+      // Typical portrait hold is beta ~45-60°; treat 45° as neutral.
+      // Negative y rotation looks right; negative x rotation looks up.
+      camRotTarget.y = Math.max(-1, Math.min(1, e.gamma / 25)) * -MAX_TILT;
+      camRotTarget.x = Math.max(-1, Math.min(1, (e.beta - 45) / 25)) * -MAX_TILT;
       camLerp = 0.18; // snappier tracking for continuous gyro input
     };
 
@@ -521,11 +524,15 @@ export default function LockerScene() {
           locker.pivot.rotation.y = locker.currentAngle;
         }
       }
-      // Smooth camera peek
+      // Smooth camera peek (mouse/desktop: position pan; gyro/mobile: rotation tilt)
       camOffset.x += (camTarget.x - camOffset.x) * camLerp;
       camOffset.y += (camTarget.y - camOffset.y) * camLerp;
       camera.position.x = BASE_CAM.x + camOffset.x;
       camera.position.y = BASE_CAM.y + camOffset.y;
+      camRotOffset.x += (camRotTarget.x - camRotOffset.x) * camLerp;
+      camRotOffset.y += (camRotTarget.y - camRotOffset.y) * camLerp;
+      camera.rotation.x = camRotOffset.x;
+      camera.rotation.y = camRotOffset.y;
       renderer.render(scene, camera);
     };
     animate();
