@@ -177,7 +177,7 @@ export default function LockerScene() {
       doorEdgeMat, // -x
       doorEdgeMat, // +y
       doorEdgeMat, // -y
-      doorFrontMat, // +z outer face
+      doorFrontMat, // +z outer  face
       doorInnerMat, // -z inner face
     ];
 
