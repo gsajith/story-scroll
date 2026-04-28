@@ -158,9 +158,9 @@ export default function LockerScene() {
 
     // Screen placeholder
     const screenMat = new THREE.MeshStandardMaterial({
-      color: 0x38df92,
-      roughness: 0.1,
-      metalness: 0.5,
+      color: 0xaaa,
+      roughness: 0,
+      metalness: 0.95,
     });
 
     // --- Shared geometries ---
