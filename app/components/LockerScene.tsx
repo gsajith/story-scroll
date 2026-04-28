@@ -9,7 +9,7 @@ const LH = 2.0; // locker height
 const LD = 0.8; // locker depth
 const GAP = 0.08;
 const DOOR_T = 0.1;
-const WALL_T = 0.0; // cabinet wall thickness — no front face, so interior is open
+const WALL_T = 0.03; // cabinet wall thickness — no front face, so interior is open
 
 const CELL_W = LW + GAP;
 const CELL_H = LH + GAP;
@@ -326,7 +326,8 @@ export default function LockerScene() {
     const EDGE_ZONE = 0.18;
 
     const setEdgePeekTarget = (nx: number, ny: number) => {
-      let tx = 0, ty = 0;
+      let tx = 0,
+        ty = 0;
       if (nx < EDGE_ZONE) {
         tx = -((EDGE_ZONE - nx) / EDGE_ZONE) * MAX_PEEK;
       } else if (nx > 1 - EDGE_ZONE) {
@@ -370,6 +371,7 @@ export default function LockerScene() {
     const onClick = (e: MouseEvent) => handleInteraction(e.clientX, e.clientY);
     const onTouch = (e: TouchEvent) => {
       e.preventDefault();
+      attachGyro(); // must be synchronously inside a touch handler for iOS 13+ permission
       if (e.changedTouches.length > 0) {
         handleInteraction(
           e.changedTouches[0].clientX,
@@ -407,20 +409,19 @@ export default function LockerScene() {
       // gamma: left-right tilt (-90..90), beta: front-back tilt (-180..180)
       // Typical portrait hold is beta ~45-60°; treat 45° as neutral
       camTarget.x = Math.max(-1, Math.min(1, e.gamma / 25)) * MAX_PEEK;
-      camTarget.y = Math.max(-1, Math.min(1, (e.beta - 45) / 25)) * MAX_PEEK * -1;
+      camTarget.y =
+        Math.max(-1, Math.min(1, (e.beta - 45) / 25)) * MAX_PEEK * -1;
     };
 
-    // iOS 13+ requires permission; request on first touch
+    // iOS 13+ requires permission granted synchronously from a touch/click handler
     let gyroAttached = false;
     const attachGyro = () => {
       if (gyroAttached) return;
       gyroAttached = true;
-      type DOE = typeof DeviceOrientationEvent & {
-        requestPermission?: () => Promise<string>;
-      };
-      const DOE = DeviceOrientationEvent as DOE;
-      if (typeof DOE.requestPermission === "function") {
-        DOE.requestPermission()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const reqPerm = (DeviceOrientationEvent as any).requestPermission;
+      if (typeof reqPerm === "function") {
+        reqPerm()
           .then((state: string) => {
             if (state === "granted")
               window.addEventListener("deviceorientation", onDeviceOrientation);
@@ -430,7 +431,6 @@ export default function LockerScene() {
         window.addEventListener("deviceorientation", onDeviceOrientation);
       }
     };
-    window.addEventListener("touchstart", attachGyro, { once: true });
 
     // --- Animation ---
     let raf: number;
@@ -468,7 +468,6 @@ export default function LockerScene() {
       mount.removeEventListener("touchend", onTouch);
       mount.removeEventListener("mousemove", onMouseMove);
       mount.removeEventListener("mouseleave", onMouseLeave);
-      window.removeEventListener("touchstart", attachGyro);
       window.removeEventListener("deviceorientation", onDeviceOrientation);
       window.removeEventListener("resize", onResize);
       renderer.dispose();
