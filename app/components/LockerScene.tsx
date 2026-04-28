@@ -244,6 +244,8 @@ export default function LockerScene() {
     };
     const lockers: Locker[] = [];
 
+    const centerIdx = Math.floor(ROWS / 2) * COLS + Math.floor(COLS / 2);
+
     for (let row = 0; row < ROWS; row++) {
       for (let col = 0; col < COLS; col++) {
         const group = new THREE.Group();
@@ -284,10 +286,14 @@ export default function LockerScene() {
         backWall.receiveShadow = true;
         group.add(backWall);
 
-        // Screen placeholder — just in front of back wall interior face
-        const screen = new THREE.Mesh(screenGeo, screenMat);
-        screen.position.set(0, LH * 0.03, BACK_INTERIOR_Z + 0.01);
-        group.add(screen);
+        // TODO: Screen placeholder — just in front of back wall interior face
+        const isCenter =
+          row === Math.floor(ROWS / 2) && col === Math.floor(COLS / 2);
+        if (!isCenter) {
+          const screen = new THREE.Mesh(screenGeo, screenMat);
+          screen.position.set(0, LH * 0.03, BACK_INTERIOR_Z + 0.01);
+          group.add(screen);
+        }
 
         // ---- Door (pivots on left hinge) ----
         const pivot = new THREE.Group();
@@ -364,25 +370,32 @@ export default function LockerScene() {
       }
     }
 
-    // --- Initial open state ---
-    const openLocker = (locker: (typeof lockers)[0]) => {
-      locker.isOpen = true;
-      locker.targetAngle = -Math.PI * 0.5;
-      locker.currentAngle = -Math.PI * 0.5;
-      locker.pivot.rotation.y = -Math.PI * 0.5;
-    };
-
-    const centerIdx = Math.floor(ROWS / 2) * COLS + Math.floor(COLS / 2);
-    openLocker(lockers[centerIdx]);
+    // --- Initial open state — doors swing open sequentially after load ---
     lockers[centerIdx].locked = true;
 
-    // 1–3 random other lockers start open
     const extraCount = 3 + Math.floor(Math.random() * 2);
     const candidates = lockers.map((_, i) => i).filter((i) => i !== centerIdx);
+    const openOrder: number[] = [centerIdx];
     for (let i = 0; i < extraCount; i++) {
       const pick = Math.floor(Math.random() * candidates.length);
-      openLocker(lockers[candidates.splice(pick, 1)[0]]);
+      openOrder.push(candidates.splice(pick, 1)[0]);
     }
+
+    const openTimeouts: ReturnType<typeof setTimeout>[] = [];
+    openOrder.forEach((idx, i) => {
+      const t = setTimeout(
+        () => {
+          const locker = lockers[idx];
+          locker.isOpen = true;
+          locker.targetAngle =
+            idx === centerIdx
+              ? -Math.PI * 0.5
+              : -Math.PI * (0.48 + Math.random() * 0.1);
+        },
+        300 + i * (Math.random() * 300 + 300),
+      );
+      openTimeouts.push(t);
+    });
 
     // --- Camera peek state ---
     const BASE_CAM = { x: camera.position.x, y: camera.position.y };
@@ -490,7 +503,8 @@ export default function LockerScene() {
       // Typical portrait hold is beta ~45-60°; treat 45° as neutral.
       // Negative y rotation looks right; negative x rotation looks up.
       camRotTarget.y = Math.max(-1, Math.min(1, e.gamma / 25)) * -MAX_TILT;
-      camRotTarget.x = Math.max(-1, Math.min(1, (e.beta - 45) / 25)) * -MAX_TILT;
+      camRotTarget.x =
+        Math.max(-1, Math.min(1, (e.beta - 45) / 25)) * -MAX_TILT;
       camLerp = 0.18; // snappier tracking for continuous gyro input
     };
 
@@ -549,6 +563,7 @@ export default function LockerScene() {
 
     return () => {
       clearTimeout(readyTimeout);
+      openTimeouts.forEach(clearTimeout);
       cancelAnimationFrame(raf);
       mount.removeEventListener("click", onClick);
       mount.removeEventListener("touchend", onTouch);
