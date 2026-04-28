@@ -6,7 +6,7 @@ import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment
 
 const LW = 2.75; // locker width
 const LH = 2.0; // locker height
-const LD = 0.8; // locker depth
+const LD = 1.4; // locker depth
 const GAP = 0.08;
 const DOOR_T = 0.1;
 const WALL_T = 0.03; // cabinet wall thickness — no front face, so interior is open
@@ -43,7 +43,7 @@ export default function LockerScene() {
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.1;
+    renderer.toneMappingExposure = 0.9;
     mount.appendChild(renderer.domElement);
 
     // --- Environment (IBL for metal reflections) ---
@@ -53,11 +53,12 @@ export default function LockerScene() {
     pmrem.dispose();
 
     // --- Lighting ---
-    const ambient = new THREE.AmbientLight(0xffffff, 0.06);
+    const ambient = new THREE.AmbientLight(0xffffff, 0.04);
     scene.add(ambient);
 
-    const keyLight = new THREE.DirectionalLight(0xfff5e8, 9.5);
-    keyLight.position.set(1.5, 1.5, 10);
+    // Key light: upper-left, strongly off-axis to create directional shading across locker faces
+    const keyLight = new THREE.DirectionalLight(0xfff8f0, 16.5);
+    keyLight.position.set(-2, 3, 8);
     keyLight.castShadow = true;
     keyLight.shadow.mapSize.set(2048, 2048);
     keyLight.shadow.camera.near = 1;
@@ -66,33 +67,47 @@ export default function LockerScene() {
     keyLight.shadow.camera.right = 20;
     keyLight.shadow.camera.top = 20;
     keyLight.shadow.camera.bottom = -20;
-    keyLight.shadow.radius = 3;
+    keyLight.shadow.radius = 8;
     keyLight.shadow.bias = -0.001;
     scene.add(keyLight);
 
-    const rimLight = new THREE.DirectionalLight(0xd0e8ff, 0.2);
-    rimLight.position.set(10, -6, 8);
+    // Soft fill from lower-right to lift shadow areas slightly
+    const fillLight = new THREE.DirectionalLight(0xd8eaff, 0.6);
+    fillLight.position.set(8, -4, 6);
+    scene.add(fillLight);
+
+    // Rim from above-back for edge separation
+    const rimLight = new THREE.DirectionalLight(0xfff0e0, 0.3);
+    rimLight.position.set(2, 10, -4);
     scene.add(rimLight);
 
+    // Subtle frontal fill to lift the flattest shadow areas without washing out
+    const frontLight = new THREE.DirectionalLight(0xffffff, 0.18);
+    frontLight.position.set(0, 0, 10);
+    scene.add(frontLight);
+
     // --- Materials ---
-    // Bright white, low-gloss painted metal — body, door faces, interior walls
+    // Painted steel locker body
     const whiteMetal = {
-      color: 0xc3bcb6,
-      roughness: 0.65,
-      metalness: 0.0,
+      color: 0xb8b2ac,
+      roughness: 0.6,
+      metalness: 0.25,
+      envMapIntensity: 0.5,
     };
     const bodyMat = new THREE.MeshStandardMaterial(whiteMetal);
     const doorFrontMat = new THREE.MeshStandardMaterial({
       ...whiteMetal,
-      roughness: 0.55,
+      roughness: 0.5,
+      envMapIntensity: 0.7,
     });
     const doorInnerMat = new THREE.MeshStandardMaterial({
       ...whiteMetal,
-      color: 0xe8e8e8,
+      color: 0x9a9590,
+      roughness: 0.75,
     });
     const doorEdgeMat = new THREE.MeshStandardMaterial({
       ...whiteMetal,
-      color: 0xd0d0d0,
+      color: 0xa8a29c,
     });
 
     // Shiny silver — handle and label frame
@@ -186,9 +201,9 @@ export default function LockerScene() {
     // Strips sit at z=0.05, inside closed door thickness (0–0.1), so doors occlude them.
     // They only cover gap-width bands in x/y, leaving locker openings clear.
     const gapMat = new THREE.MeshStandardMaterial({
-      color: 0xc3bcb6,
+      color: 0x888480,
       roughness: 0.7,
-      metalness: 0.1,
+      metalness: 0.15,
     });
     const GAP_Z = 0.15;
     const totalW = COLS * CELL_W + 4;
