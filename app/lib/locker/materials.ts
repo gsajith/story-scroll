@@ -4,6 +4,7 @@ import { LW, LH, LD, DOOR_T, WALL_T } from "./constants";
 
 export type LockerMaterials = {
   bodyMat: THREE.MeshStandardMaterial;
+  interiorBodyMat: THREE.MeshStandardMaterial;
   silverMat: THREE.MeshStandardMaterial;
   labelPaperMat: THREE.MeshStandardMaterial;
   doorMaterials: THREE.Material[];
@@ -18,6 +19,10 @@ export function createLockerMaterials(): LockerMaterials {
   };
 
   const bodyMat = new THREE.MeshStandardMaterial(whiteMetal);
+  const interiorBodyMat = new THREE.MeshStandardMaterial({
+    ...whiteMetal,
+    color: 0xbab6af,
+  });
   const doorFrontMat = new THREE.MeshStandardMaterial({
     ...whiteMetal,
     roughness: 0.5,
@@ -49,9 +54,17 @@ export function createLockerMaterials(): LockerMaterials {
 
   return {
     bodyMat,
+    interiorBodyMat,
     silverMat,
     labelPaperMat,
-    doorMaterials: [doorEdgeMat, doorEdgeMat, doorEdgeMat, doorEdgeMat, doorFrontMat, doorInnerMat],
+    doorMaterials: [
+      doorEdgeMat,
+      doorEdgeMat,
+      doorEdgeMat,
+      doorEdgeMat,
+      doorFrontMat,
+      doorInnerMat,
+    ],
   };
 }
 

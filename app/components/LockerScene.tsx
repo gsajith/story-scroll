@@ -54,7 +54,7 @@ export default function LockerScene() {
 
     addGapStrips(scene, COLS, ROWS);
 
-    const { bodyMat, silverMat, labelPaperMat, doorMaterials } = createLockerMaterials();
+    const { bodyMat, interiorBodyMat, silverMat, labelPaperMat, doorMaterials } = createLockerMaterials();
     const geos = createLockerGeometries();
 
     // --- Mutable scene references ---
@@ -81,7 +81,7 @@ export default function LockerScene() {
           0,
         );
 
-        buildLockerShell(group, bodyMat, geos);
+        buildLockerShell(group, bodyMat, interiorBodyMat, geos);
 
         const isCenter = row === Math.floor(ROWS / 2) && col === Math.floor(COLS / 2);
         if (isCenter) {

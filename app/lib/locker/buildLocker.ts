@@ -5,6 +5,7 @@ import type { LockerGeometries } from "./materials";
 export function buildLockerShell(
   group: THREE.Group,
   bodyMat: THREE.MeshStandardMaterial,
+  interiorBodyMat: THREE.MeshStandardMaterial,
   { wallSideGeo, wallTopGeo, wallBackGeo }: LockerGeometries,
 ): void {
   const add = (mesh: THREE.Mesh) => {
@@ -12,10 +13,10 @@ export function buildLockerShell(
     group.add(mesh);
     return mesh;
   };
-  add(new THREE.Mesh(wallSideGeo, bodyMat)).position.set(-LW / 2 + WALL_T / 2, 0, -LD / 2);
-  add(new THREE.Mesh(wallSideGeo, bodyMat)).position.set(LW / 2 - WALL_T / 2, 0, -LD / 2);
-  add(new THREE.Mesh(wallTopGeo, bodyMat)).position.set(0, LH / 2 - WALL_T / 2, -LD / 2);
-  add(new THREE.Mesh(wallTopGeo, bodyMat)).position.set(0, -LH / 2 + WALL_T / 2, -LD / 2);
+  add(new THREE.Mesh(wallSideGeo, interiorBodyMat)).position.set(-LW / 2 + WALL_T / 2, 0, -LD / 2);
+  add(new THREE.Mesh(wallSideGeo, interiorBodyMat)).position.set(LW / 2 - WALL_T / 2, 0, -LD / 2);
+  add(new THREE.Mesh(wallTopGeo, interiorBodyMat)).position.set(0, LH / 2 - WALL_T / 2, -LD / 2);
+  add(new THREE.Mesh(wallTopGeo, interiorBodyMat)).position.set(0, -LH / 2 + WALL_T / 2, -LD / 2);
   add(new THREE.Mesh(wallBackGeo, bodyMat)).position.set(0, 0, -LD + WALL_T / 2);
 }
 
