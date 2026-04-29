@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import styles from "./LockerScene.module.css";
 
 type Props = {
@@ -8,6 +9,14 @@ type Props = {
 };
 
 export default function AboutNote({ exiting, onClose }: Props) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   return (
     <div
       role="dialog"
