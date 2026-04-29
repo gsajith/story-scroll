@@ -25,6 +25,25 @@ const BACK_INTERIOR_Z = -LD + WALL_T;
 export default function LockerScene() {
   const mountRef = useRef<HTMLDivElement>(null);
   const [sceneReady, setSceneReady] = useState(false);
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [noteExiting, setNoteExiting] = useState(false);
+  const closeNote = () => {
+    setNoteExiting(true);
+    setTimeout(() => {
+      setNoteOpen(false);
+      setNoteExiting(false);
+    }, 380);
+  };
+
+  useEffect(() => {
+    if (!noteOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeNote();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [noteOpen]);
 
   useEffect(() => {
     const mount = mountRef.current!;
@@ -241,6 +260,9 @@ export default function LockerScene() {
     let submitBtnMesh: THREE.Mesh | null = null;
     let btnHovered = false;
     const btnScreenPos = new THREE.Vector3();
+    let paperGroup: THREE.Group | null = null;
+    let paperMesh: THREE.Mesh | null = null;
+    let paperHovered = false;
     let mouseNX = 0.5,
       mouseNY = 0.5;
 
@@ -310,7 +332,7 @@ export default function LockerScene() {
           const btnMesh = new THREE.Mesh(
             new RoundedBoxGeometry(btnW, btnH, btnD, 8, 0.04),
             new THREE.MeshStandardMaterial({
-              color: 0x4a6a8a,
+              color: 0xc23019,
               roughness: 0.55,
               metalness: 0.1,
               envMapIntensity: 0.4,
@@ -427,6 +449,70 @@ export default function LockerScene() {
         );
         pivot.add(labelPaper);
 
+        if (isSouthOfCenter) {
+          const pw = LW * 0.42,
+            ph = LH * 0.42;
+          const pGeo = new THREE.PlaneGeometry(pw, ph, 10, 10);
+          const pPos = pGeo.attributes.position as THREE.BufferAttribute;
+          for (let vi = 0; vi < pPos.count; vi++) {
+            const vx = pPos.getX(vi) / pw;
+            const vy = pPos.getY(vi) / ph;
+            pPos.setZ(
+              vi,
+              Math.sin(vx * 8.5 + 1) * 0.16 +
+                Math.cos(vy * 6.2) * 0.12 +
+                (Math.random() - 0.5) * 0.28,
+            );
+          }
+          pGeo.computeVertexNormals();
+
+          const noteCanvas = document.createElement("canvas");
+          noteCanvas.width = 512;
+          noteCanvas.height = 512;
+          const nc = noteCanvas.getContext("2d")!;
+          nc.fillStyle = "#fdf9ee";
+          nc.fillRect(0, 0, 512, 512);
+          nc.fillStyle = "#1a1a1a";
+          nc.font = "bold 32px Georgia, serif";
+          nc.textAlign = "left";
+          nc.fillText("About Us", 40, 56);
+          nc.fillStyle = "#3a3a3a";
+          nc.font = "18px Georgia, serif";
+          const loremLines = [
+            "Lorem ipsum dolor sit amet, consectetur",
+            "adipiscing elit. Sed do eiusmod tempor",
+            "incididunt ut labore et dolore magna aliqua.",
+            "Ut enim ad minim veniam, quis nostrud",
+            "exercitation ullamco laboris nisi ut aliquip",
+            "ex ea commodo consequat.",
+            "",
+            "Excepteur sint occaecat cupidatat non",
+            "proident, sunt in culpa qui officia deserunt",
+            "mollit anim id est laborum.",
+          ];
+          loremLines.forEach((line, i) => nc.fillText(line, 40, 100 + i * 30));
+
+          const pMesh = new THREE.Mesh(
+            pGeo,
+            new THREE.MeshStandardMaterial({
+              color: 0xf4f0e6,
+              map: new THREE.CanvasTexture(noteCanvas),
+              roughness: 0.88,
+              metalness: 0,
+              side: THREE.DoubleSide,
+            }),
+          );
+          pMesh.castShadow = true;
+          pMesh.receiveShadow = true;
+          paperMesh = pMesh;
+          const pGroup = new THREE.Group();
+          pGroup.add(pMesh);
+          pGroup.position.set(-LW * 0.04, -LH * 0.12, BACK_INTERIOR_Z + 0.6);
+          pGroup.rotation.set(-0.12, 0.05, 0.08);
+          group.add(pGroup);
+          paperGroup = pGroup;
+        }
+
         scene.add(group);
 
         lockers.push({
@@ -518,6 +604,14 @@ export default function LockerScene() {
         .map((l) => l.pivot.children[0])
         .filter((c): c is THREE.Mesh => c instanceof THREE.Mesh);
 
+      if (paperMesh !== null && lockers[aboutUsIdx].isOpen) {
+        if (raycaster.intersectObject(paperMesh).length > 0) {
+          paperHovered = false;
+          setNoteOpen(true);
+          return;
+        }
+      }
+
       if (submitBtnMesh !== null) {
         const btnHits = raycaster.intersectObject(submitBtnMesh);
         if (btnHits.length > 0) {
@@ -582,8 +676,13 @@ export default function LockerScene() {
           );
         }
       }
+      let overPaper = false;
+      if (paperMesh !== null && lockers[aboutUsIdx].isOpen) {
+        overPaper = raycaster.intersectObject(paperMesh).length > 0;
+        if (overPaper !== paperHovered) paperHovered = overPaper;
+      }
       mount.style.cursor =
-        hits.length > 0 || overButton ? "pointer" : "default";
+        hits.length > 0 || overButton || overPaper ? "pointer" : "default";
       mouseNX = nx;
       mouseNY = ny;
       setEdgePeekTarget(nx, ny);
@@ -657,6 +756,22 @@ export default function LockerScene() {
         submitButtonGroup.rotation.x +=
           (rotX - submitButtonGroup.rotation.x) * 0.06;
       }
+      // Rustle crumpled paper on hover
+      if (paperGroup !== null) {
+        const t = performance.now() * 0.001;
+        const restX = -0.12,
+          restY = 0.05,
+          restZ = 0.08;
+        if (paperHovered) {
+          paperGroup.rotation.x = restX + Math.sin(t * 12) * 0.022;
+          paperGroup.rotation.y = restY + Math.sin(t * 9 + 1.5) * 0.018;
+          paperGroup.rotation.z = restZ + Math.sin(t * 15 + 0.8) * 0.02;
+        } else {
+          paperGroup.rotation.x += (restX - paperGroup.rotation.x) * 0.06;
+          paperGroup.rotation.y += (restY - paperGroup.rotation.y) * 0.06;
+          paperGroup.rotation.z += (restZ - paperGroup.rotation.z) * 0.06;
+        }
+      }
       renderer.render(scene, camera);
     };
     animate();
@@ -705,6 +820,111 @@ export default function LockerScene() {
           transition: "opacity 0.4s ease",
         }}
       />
+      {noteOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="note-title"
+          onClick={closeNote}
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(0,0,0,0.55)",
+            zIndex: 20,
+            animation: noteExiting
+              ? "noteBackdropOut 0.38s ease forwards"
+              : "noteBackdropIn 0.3s ease",
+          }}>
+          <article
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "85vw",
+              maxWidth: 760,
+              maxHeight: "85vh",
+              background: "#fdf9ee",
+              borderRadius: "2px",
+              padding: "64px 72px",
+              overflowY: "auto",
+              boxShadow:
+                "0 40px 100px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.15)",
+              fontFamily: "Georgia, 'Times New Roman', serif",
+              position: "relative",
+              animation: noteExiting
+                ? "noteOut 0.38s cubic-bezier(0.4,0,1,1) forwards"
+                : "noteIn 0.42s cubic-bezier(0.34,1.4,0.64,1)",
+            }}>
+            <button
+              aria-label="Close"
+              onClick={closeNote}
+              style={{
+                position: "absolute",
+                top: 20,
+                right: 24,
+                background: "none",
+                border: "none",
+                fontSize: 24,
+                cursor: "pointer",
+                color: "#999",
+                lineHeight: 1,
+              }}>
+              ×
+            </button>
+            <h1
+              id="note-title"
+              style={{
+                fontSize: 36,
+                fontWeight: "normal",
+                marginTop: 0,
+                marginBottom: 28,
+                letterSpacing: "0.02em",
+                color: "#1a1a1a",
+              }}>
+              About Us
+            </h1>
+            <p
+              style={{
+                fontSize: 17,
+                lineHeight: 1.9,
+                color: "#2c2c2c",
+                marginBottom: 20,
+              }}>
+              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do
+              eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut
+              enim ad minim veniam, quis nostrud exercitation ullamco laboris
+              nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in
+              reprehenderit in voluptate velit esse cillum dolore eu fugiat
+              nulla pariatur.
+            </p>
+            <p
+              style={{
+                fontSize: 17,
+                lineHeight: 1.9,
+                color: "#2c2c2c",
+                marginBottom: 20,
+              }}>
+              Excepteur sint occaecat cupidatat non proident, sunt in culpa qui
+              officia deserunt mollit anim id est laborum. Pellentesque habitant
+              morbi tristique senectus et netus et malesuada fames ac turpis
+              egestas. Vestibulum tortor quam, feugiat vitae, ultricies eget,
+              tempor sit amet, ante.
+            </p>
+            <p style={{ fontSize: 17, lineHeight: 1.9, color: "#2c2c2c" }}>
+              Donec eu libero sit amet quam egestas semper. Aenean ultricies mi
+              vitae est. Mauris placerat eleifend leo. Quisque sit amet est et
+              sapien ullamcorper pharetra.
+            </p>
+          </article>
+          <style>{`
+            @keyframes noteBackdropIn  { from { opacity: 0 } to { opacity: 1 } }
+            @keyframes noteBackdropOut { from { opacity: 1 } to { opacity: 0 } }
+            @keyframes noteIn  { from { opacity: 0; transform: scale(0.15) rotate(-8deg) } to { opacity: 1; transform: scale(1) rotate(-0.3deg) } }
+            @keyframes noteOut { from { opacity: 1; transform: scale(1) rotate(-0.3deg) } to { opacity: 0; transform: scale(0.1) rotate(6deg) } }
+          `}</style>
+        </div>
+      )}
       {!sceneReady && (
         <div
           style={{
