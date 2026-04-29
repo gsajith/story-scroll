@@ -145,6 +145,9 @@ export default function LockerScene() {
       color: 0xd4d4d4,
       roughness: 0.0,
       metalness: 1,
+      envMapIntensity: 2.5,
+      emissive: 0x334466,
+      emissiveIntensity: 0.12,
     });
     const handleMat = silverMat;
     const labelFrameMat = silverMat;
@@ -244,6 +247,13 @@ export default function LockerScene() {
     };
     const lockers: Locker[] = [];
 
+    let submitButtonGroup: THREE.Group | null = null;
+    let submitBtnMesh: THREE.Mesh | null = null;
+    let btnHovered = false;
+    const btnScreenPos = new THREE.Vector3();
+    let mouseNX = 0.5,
+      mouseNY = 0.5;
+
     const centerIdx = Math.floor(ROWS / 2) * COLS + Math.floor(COLS / 2);
 
     for (let row = 0; row < ROWS; row++) {
@@ -286,13 +296,64 @@ export default function LockerScene() {
         backWall.receiveShadow = true;
         group.add(backWall);
 
-        // TODO: Screen placeholder — just in front of back wall interior face
         const isCenter =
           row === Math.floor(ROWS / 2) && col === Math.floor(COLS / 2);
         if (!isCenter) {
           const screen = new THREE.Mesh(screenGeo, screenMat);
           screen.position.set(0, LH * 0.03, BACK_INTERIOR_Z + 0.01);
           group.add(screen);
+        } else {
+          // Floating 3D submit button inside the center locker
+          const btnW = LW * 0.55;
+          const btnH = LH * 0.18;
+          const btnD = 0.15;
+
+          const btnCanvas = document.createElement("canvas");
+          btnCanvas.width = 768;
+          btnCanvas.height = 160;
+          const btnCtx = btnCanvas.getContext("2d")!;
+          btnCtx.clearRect(0, 0, 768, 160);
+          btnCtx.fillStyle = "#f0ece4";
+          btnCtx.font =
+            "bold 72px 'Helvetica Neue', Helvetica, Arial, sans-serif";
+          btnCtx.textAlign = "center";
+          btnCtx.textBaseline = "middle";
+          btnCtx.fillText("SUBMIT YOUR STORY", 384, 84);
+          const btnLabelTex = new THREE.CanvasTexture(btnCanvas);
+
+          const btnMesh = new THREE.Mesh(
+            new RoundedBoxGeometry(btnW, btnH, btnD, 8, 0.04),
+            new THREE.MeshStandardMaterial({
+              color: 0x4a6a8a,
+              roughness: 0.55,
+              metalness: 0.1,
+              envMapIntensity: 0.4,
+            }),
+          );
+          btnMesh.castShadow = true;
+          submitBtnMesh = btnMesh;
+
+          const labelPlane = new THREE.Mesh(
+            new THREE.PlaneGeometry(btnW * 0.88, btnH * 0.72),
+            new THREE.MeshStandardMaterial({
+              map: btnLabelTex,
+              transparent: true,
+              roughness: 1,
+              metalness: 0,
+              envMapIntensity: 0,
+            }),
+          );
+          labelPlane.position.z = btnD / 2 + 0.001;
+
+          submitButtonGroup = new THREE.Group();
+          submitButtonGroup.add(btnMesh);
+          submitButtonGroup.add(labelPlane);
+          submitButtonGroup.position.set(
+            0,
+            0,
+            BACK_INTERIOR_Z + btnD / 2 + 0.45,
+          );
+          group.add(submitButtonGroup);
         }
 
         // ---- Door (pivots on left hinge) ----
@@ -444,6 +505,14 @@ export default function LockerScene() {
         .map((l) => l.pivot.children[0])
         .filter((c): c is THREE.Mesh => c instanceof THREE.Mesh);
 
+      if (submitBtnMesh !== null) {
+        const btnHits = raycaster.intersectObject(submitBtnMesh);
+        if (btnHits.length > 0) {
+          window.open("https://google.com", "_blank");
+          return;
+        }
+      }
+
       const hits = raycaster.intersectObjects(doorMeshes);
       if (hits.length > 0) {
         const idx = doorMeshes.indexOf(hits[0].object as THREE.Mesh);
@@ -490,7 +559,19 @@ export default function LockerScene() {
         .map((l) => l.pivot.children[0])
         .filter((c): c is THREE.Mesh => c instanceof THREE.Mesh);
       const hits = raycaster.intersectObjects(doorMeshes);
-      mount.style.cursor = hits.length > 0 ? "pointer" : "default";
+      let overButton = false;
+      if (submitBtnMesh !== null) {
+        overButton = raycaster.intersectObject(submitBtnMesh).length > 0;
+        if (overButton !== btnHovered) {
+          btnHovered = overButton;
+          (submitBtnMesh.material as THREE.MeshStandardMaterial).color.set(
+            overButton ? 0x6688aa : 0x4a6a8a,
+          );
+        }
+      }
+      mount.style.cursor = hits.length > 0 || overButton ? "pointer" : "default";
+      mouseNX = nx;
+      mouseNY = ny;
       setEdgePeekTarget(nx, ny);
     };
     const onMouseLeave = () => {
@@ -546,6 +627,22 @@ export default function LockerScene() {
       camOffset.y += (camTarget.y - camOffset.y) * camLerp;
       camera.position.x = BASE_CAM.x + camOffset.x;
       camera.position.y = BASE_CAM.y + camOffset.y;
+      // Animate submit button: float + mouse-tracking rotation
+      if (submitButtonGroup !== null) {
+        const t = performance.now() * 0.001;
+        submitButtonGroup.position.y = Math.sin(t * 1.1) * 0.07;
+        // Project button center to screen space so rotation tracks relative to the button, not the screen center
+        submitButtonGroup.getWorldPosition(btnScreenPos);
+        btnScreenPos.project(camera);
+        const btnSX = (btnScreenPos.x + 1) / 2;
+        const btnSY = (1 - btnScreenPos.y) / 2;
+        const rotY = (mouseNX - btnSX) * 1.6;
+        const rotX = (mouseNY - btnSY) * 1.35;
+        submitButtonGroup.rotation.y +=
+          (rotY - submitButtonGroup.rotation.y) * 0.06;
+        submitButtonGroup.rotation.x +=
+          (rotX - submitButtonGroup.rotation.x) * 0.06;
+      }
       renderer.render(scene, camera);
     };
     animate();
