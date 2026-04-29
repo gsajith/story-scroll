@@ -159,13 +159,6 @@ export default function LockerScene() {
       envMapIntensity: 0.0,
     });
 
-    // Screen placeholder
-    const screenMat = new THREE.MeshStandardMaterial({
-      color: 0xaaa,
-      roughness: 0,
-      metalness: 0.95,
-    });
-
     // --- Shared geometries ---
     // Cabinet shell — 5 panels, NO front face (opening is left empty)
     const wallSideGeo = new THREE.BoxGeometry(WALL_T, LH, LD);
@@ -191,9 +184,6 @@ export default function LockerScene() {
     const labelPaperGeo = new THREE.PlaneGeometry(LW * 0.19, LH * 0.15);
     const doorHingeMatGeo = new RoundedBoxGeometry(LW * 0.07, LH * 0.2, 0.055);
     const doorHingeGeo = new RoundedBoxGeometry(LW * 0.15, LH * 0.06, 0.068);
-
-    // Interior screen
-    const screenGeo = new THREE.PlaneGeometry(LW * 0.65, LH * 0.58);
 
     // --- Compute grid ---
     const vFOV = (FOV * Math.PI) / 180;
@@ -298,11 +288,7 @@ export default function LockerScene() {
 
         const isCenter =
           row === Math.floor(ROWS / 2) && col === Math.floor(COLS / 2);
-        if (!isCenter) {
-          const screen = new THREE.Mesh(screenGeo, screenMat);
-          screen.position.set(0, LH * 0.03, BACK_INTERIOR_Z + 0.01);
-          group.add(screen);
-        } else {
+        if (isCenter) {
           // Floating 3D submit button inside the center locker
           const btnW = LW * 0.55;
           const btnH = LH * 0.18;
@@ -411,7 +397,29 @@ export default function LockerScene() {
         labelFrame.position.set(LW / 2, LH / 2 - LH * 0.25, DOOR_T / 2 + 0.009);
         pivot.add(labelFrame);
 
-        const labelPaper = new THREE.Mesh(labelPaperGeo, labelPaperMat);
+        const isSouthOfCenter =
+          row === Math.floor(ROWS / 2) - 1 && col === Math.floor(COLS / 2);
+        let labelPaperMeshMat = labelPaperMat;
+        if (isSouthOfCenter) {
+          const lc = document.createElement("canvas");
+          lc.width = 256;
+          lc.height = 128;
+          const lx = lc.getContext("2d")!;
+          lx.fillStyle = "#ffffff";
+          lx.fillRect(0, 0, 256, 128);
+          lx.fillStyle = "#111111";
+          lx.font = "bold 36px 'Helvetica Neue', Helvetica, Arial, sans-serif";
+          lx.textAlign = "center";
+          lx.textBaseline = "middle";
+          lx.fillText("ABOUT US", 128, 64);
+          labelPaperMeshMat = new THREE.MeshStandardMaterial({
+            map: new THREE.CanvasTexture(lc),
+            roughness: 0.95,
+            metalness: 0,
+            envMapIntensity: 0,
+          });
+        }
+        const labelPaper = new THREE.Mesh(labelPaperGeo, labelPaperMeshMat);
         labelPaper.position.set(
           LW / 2,
           LH / 2 - LH * 0.25,
@@ -434,8 +442,13 @@ export default function LockerScene() {
     // --- Initial open state — doors swing open sequentially after load ---
     lockers[centerIdx].locked = true;
 
+    const aboutUsIdx = (Math.floor(ROWS / 2) - 1) * COLS + Math.floor(COLS / 2);
+    const noRandomOpen = new Set([centerIdx, aboutUsIdx]);
+
     const extraCount = 3 + Math.floor(Math.random() * 2);
-    const candidates = lockers.map((_, i) => i).filter((i) => i !== centerIdx);
+    const candidates = lockers
+      .map((_, i) => i)
+      .filter((i) => !noRandomOpen.has(i));
     const openOrder: number[] = [centerIdx];
     for (let i = 0; i < extraCount; i++) {
       const pick = Math.floor(Math.random() * candidates.length);
@@ -569,7 +582,8 @@ export default function LockerScene() {
           );
         }
       }
-      mount.style.cursor = hits.length > 0 || overButton ? "pointer" : "default";
+      mount.style.cursor =
+        hits.length > 0 || overButton ? "pointer" : "default";
       mouseNX = nx;
       mouseNY = ny;
       setEdgePeekTarget(nx, ny);
