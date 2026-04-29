@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
+import styles from "./LockerScene.module.css";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { EXRLoader } from "three/examples/jsm/loaders/EXRLoader.js";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
@@ -804,21 +805,11 @@ export default function LockerScene() {
   }, []);
 
   return (
-    <div
-      style={{
-        width: "100vw",
-        height: "100vh",
-        overflow: "hidden",
-        position: "relative",
-      }}>
+    <div className={styles.wrapper}>
       <div
         ref={mountRef}
-        style={{
-          width: "100%",
-          height: "100%",
-          opacity: sceneReady ? 1 : 0,
-          transition: "opacity 0.4s ease",
-        }}
+        className={styles.canvas}
+        style={{ opacity: sceneReady ? 1 : 0 }}
       />
       {noteOpen && (
         <div
@@ -826,71 +817,17 @@ export default function LockerScene() {
           aria-modal="true"
           aria-labelledby="note-title"
           onClick={closeNote}
-          style={{
-            position: "absolute",
-            inset: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: "rgba(0,0,0,0.55)",
-            zIndex: 20,
-            animation: noteExiting
-              ? "noteBackdropOut 0.38s ease forwards"
-              : "noteBackdropIn 0.3s ease",
-          }}>
+          className={`${styles.noteBackdrop} ${noteExiting ? styles.exiting : ""}`}>
           <article
             onClick={(e) => e.stopPropagation()}
-            style={{
-              width: "85vw",
-              maxWidth: 760,
-              maxHeight: "85vh",
-              background: "#fdf9ee",
-              borderRadius: "2px",
-              padding: "64px 72px",
-              overflowY: "auto",
-              boxShadow:
-                "0 40px 100px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.15)",
-              fontFamily: "Georgia, 'Times New Roman', serif",
-              position: "relative",
-              animation: noteExiting
-                ? "noteOut 0.38s cubic-bezier(0.4,0,1,1) forwards"
-                : "noteIn 0.42s cubic-bezier(0.34,1.4,0.64,1)",
-            }}>
-            <button
-              aria-label="Close"
-              onClick={closeNote}
-              style={{
-                position: "absolute",
-                top: 20,
-                right: 24,
-                background: "none",
-                border: "none",
-                fontSize: 24,
-                cursor: "pointer",
-                color: "#999",
-                lineHeight: 1,
-              }}>
+            className={`${styles.noteArticle} ${noteExiting ? styles.exiting : ""}`}>
+            <button aria-label="Close" onClick={closeNote} className={styles.noteClose}>
               ×
             </button>
-            <h1
-              id="note-title"
-              style={{
-                fontSize: 36,
-                fontWeight: "normal",
-                marginTop: 0,
-                marginBottom: 28,
-                letterSpacing: "0.02em",
-                color: "#1a1a1a",
-              }}>
+            <h1 id="note-title" className={styles.noteTitle}>
               About Us
             </h1>
-            <p
-              style={{
-                fontSize: 17,
-                lineHeight: 1.9,
-                color: "#2c2c2c",
-                marginBottom: 20,
-              }}>
+            <p className={styles.noteBody}>
               Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do
               eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut
               enim ad minim veniam, quis nostrud exercitation ullamco laboris
@@ -898,54 +835,24 @@ export default function LockerScene() {
               reprehenderit in voluptate velit esse cillum dolore eu fugiat
               nulla pariatur.
             </p>
-            <p
-              style={{
-                fontSize: 17,
-                lineHeight: 1.9,
-                color: "#2c2c2c",
-                marginBottom: 20,
-              }}>
+            <p className={styles.noteBody}>
               Excepteur sint occaecat cupidatat non proident, sunt in culpa qui
               officia deserunt mollit anim id est laborum. Pellentesque habitant
               morbi tristique senectus et netus et malesuada fames ac turpis
               egestas. Vestibulum tortor quam, feugiat vitae, ultricies eget,
               tempor sit amet, ante.
             </p>
-            <p style={{ fontSize: 17, lineHeight: 1.9, color: "#2c2c2c" }}>
+            <p className={styles.noteBody}>
               Donec eu libero sit amet quam egestas semper. Aenean ultricies mi
               vitae est. Mauris placerat eleifend leo. Quisque sit amet est et
               sapien ullamcorper pharetra.
             </p>
           </article>
-          <style>{`
-            @keyframes noteBackdropIn  { from { opacity: 0 } to { opacity: 1 } }
-            @keyframes noteBackdropOut { from { opacity: 1 } to { opacity: 0 } }
-            @keyframes noteIn  { from { opacity: 0; transform: scale(0.15) rotate(-8deg) } to { opacity: 1; transform: scale(1) rotate(-0.3deg) } }
-            @keyframes noteOut { from { opacity: 1; transform: scale(1) rotate(-0.3deg) } to { opacity: 0; transform: scale(0.1) rotate(6deg) } }
-          `}</style>
         </div>
       )}
       {!sceneReady && (
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: "#fff",
-          }}>
-          <div
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: "50%",
-              border: "3px solid #aaa",
-              borderTopColor: "#333",
-              animation: "spin 0.8s linear infinite",
-            }}
-          />
-          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        <div className={styles.loader}>
+          <div className={styles.loaderSpinner} />
         </div>
       )}
     </div>
