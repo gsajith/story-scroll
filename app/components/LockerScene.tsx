@@ -13,10 +13,11 @@ import { addGapStrips } from "../lib/locker/gapStrips";
 import { buildLockerShell, buildDoorAssembly, createAboutUsLabelMat } from "../lib/locker/buildLocker";
 import { createSubmitButton } from "../lib/locker/submitButton";
 import { createCrumpledPaper } from "../lib/locker/crumpledPaper";
+import { createBookStack } from "../lib/locker/book";
 import { createCameraPeek } from "../lib/locker/cameraPeek";
 import { attachGyroscope } from "../lib/locker/gyroscope";
 
-export default function LockerScene() {
+export default function LockerScene({ bookCovers = [] }: { bookCovers?: string[] }) {
   const mountRef = useRef<HTMLDivElement>(null);
   const [sceneReady, setSceneReady] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
@@ -56,6 +57,15 @@ export default function LockerScene() {
 
     const { bodyMat, interiorBodyMat, silverMat, labelPaperMat, doorMaterials } = createLockerMaterials();
     const geos = createLockerGeometries();
+
+    // --- Book cover textures (shared across all book meshes) ---
+    const texLoader = new THREE.TextureLoader(loadingManager);
+    const bookTextures = bookCovers.map((name) => {
+      const t = texLoader.load(`/book_covers/${encodeURIComponent(name)}`);
+      t.colorSpace = THREE.SRGBColorSpace;
+      t.anisotropy = 4;
+      return t;
+    });
 
     // --- Mutable scene references ---
     const lockers: Locker[] = [];
@@ -100,6 +110,25 @@ export default function LockerScene() {
           paperGroup = pGroup;
           paperMesh = pMesh;
           group.add(pGroup);
+        }
+
+        // ~70% of ordinary lockers hold 1–2 books leaning against a side wall.
+        if (
+          bookTextures.length > 0 &&
+          !isCenter &&
+          !isSouthOfCenter &&
+          Math.random() < 0.7
+        ) {
+          const count = Math.min(
+            Math.random() < 0.45 ? 2 : 1,
+            bookTextures.length,
+          );
+          // Pick distinct covers (no repeats within a single locker's stack).
+          const pool = bookTextures.slice();
+          const covers = Array.from({ length: count }, () =>
+            pool.splice(Math.floor(Math.random() * pool.length), 1)[0],
+          );
+          group.add(createBookStack(covers));
         }
 
         scene.add(group);
@@ -168,7 +197,7 @@ export default function LockerScene() {
       }
 
       if (submitBtnMesh !== null && raycaster.intersectObject(submitBtnMesh).length > 0) {
-        window.open("https://google.com", "_blank");
+        window.open("https://docs.google.com/forms/d/e/1FAIpQLSfkKYi903i5ibpswfs8ayorc0DKQTejqBKRe4MB7ME9p-jAeQ/viewform?usp=header", "_blank");
         return;
       }
 
@@ -303,6 +332,8 @@ export default function LockerScene() {
       renderer.dispose();
       if (mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement);
     };
+    // Scene is built once on mount; bookCovers is fixed for the page render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

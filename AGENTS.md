@@ -21,6 +21,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **`gapStrips.ts`** — `addGapStrips(scene, COLS, ROWS)`.
 - **`submitButton.ts`** — `createSubmitButton()` → `{ group, mesh }`. Red (`0xc23019`), positioned inside the locker.
 - **`crumpledPaper.ts`** — `createCrumpledPaper()` → `{ group, mesh }`. A4-portrait PlaneGeometry with sine/cosine crumple. See paper-tuning notes below.
+- **`book.ts`** — `createBookStack(coverTextures[])` → `THREE.Group`. 1–2 upright hardcover books, turned so the cover art angles toward the open side, slightly leaning against a random side wall. `buildBook()` constructs each book in a local frame (cover art on +Z front board, bound spine on -X, fore-edge on +X): front/back cover boards overhang an inset cream page block (striated edges via a shared `CanvasTexture`), plus a per-book textured spine (binding colour + faint bands/title). Thickness `bt ≈ 0.07–0.30` (biased thin, varied). Positioned near the back wall so it stays hidden behind a closed door. Cover filenames are read server-side in `app/page.tsx` from `public/book_covers/` and passed to `LockerScene` as the `bookCovers` prop; textures load through the `LoadingManager`. ~70% of ordinary lockers get a stack (center submit + about-us lockers excluded).
 - **`cameraPeek.ts`** — `createCameraPeek(camera)` → `{ setFromMouse, setFromGyro, reset, update }`.
 - **`gyroscope.ts`** — `attachGyroscope(onOrientation)` → teardown fn. Handles iOS permission.
 
