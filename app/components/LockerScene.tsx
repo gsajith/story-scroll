@@ -78,8 +78,20 @@ export default function LockerScene({ bookCovers = [] }: { bookCovers?: string[]
     let paperHovered = false;
     let mouseNX = 0.5, mouseNY = 0.5;
 
-    const centerIdx = Math.floor(ROWS / 2) * COLS + Math.floor(COLS / 2);
-    const aboutUsIdx = (Math.floor(ROWS / 2) - 1) * COLS + Math.floor(COLS / 2);
+    const centerCol = Math.floor(COLS / 2);
+    const centerRow = Math.floor(ROWS / 2);
+    const centerIdx = centerRow * COLS + centerCol;
+    const aboutUsIdx = (centerRow - 1) * COLS + centerCol;
+
+    // On mobile, optically center the submit-button locker. Portrait viewports
+    // give a different COLS/ROWS parity, which drifts the center locker up to
+    // half a cell off the grid origin the camera is aimed at. Re-anchoring the
+    // camera onto the locker's world position must happen before
+    // createCameraPeek(), which snapshots the camera as its peek base.
+    if (window.matchMedia("(max-width: 600px)").matches) {
+      camera.position.x = (centerCol - (COLS - 1) / 2) * CELL_W;
+      camera.position.y = (centerRow - (ROWS - 1) / 2) * CELL_H;
+    }
 
     // --- Build locker grid ---
     for (let row = 0; row < ROWS; row++) {
@@ -162,11 +174,12 @@ export default function LockerScene({ bookCovers = [] }: { bookCovers?: string[]
     // --- Camera peek ---
     const peek = createCameraPeek(camera);
 
-    // --- Gyroscope ---
+    // --- Gyroscope (disabled on mobile) ---
+    const isMobile = window.matchMedia("(max-width: 600px)").matches;
     let detachGyro: (() => void) | null = null;
     let gyroAttached = false;
     const attachGyro = () => {
-      if (gyroAttached) return;
+      if (gyroAttached || isMobile) return;
       gyroAttached = true;
       detachGyro = attachGyroscope((e) => {
         if (e.gamma === null || e.beta === null) return;
