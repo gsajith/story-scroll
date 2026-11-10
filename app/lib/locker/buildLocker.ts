@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import { LW, LH, LD, DOOR_T, WALL_T } from "./constants";
 import type { LockerGeometries } from "./materials";
+import { redHatDisplay } from "../../fonts";
+import { createTextTexture } from "./textTexture";
 
 export function buildLockerShell(
   group: THREE.Group,
@@ -67,20 +69,20 @@ export function buildDoorAssembly(
   return pivot;
 }
 
-export function createAboutUsLabelMat(): THREE.MeshStandardMaterial {
-  const canvas = document.createElement("canvas");
-  canvas.width = 256;
-  canvas.height = 128;
-  const ctx = canvas.getContext("2d")!;
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, 256, 128);
-  ctx.fillStyle = "#111111";
-  ctx.font = "bold 36px 'Helvetica Neue', Helvetica, Arial, sans-serif";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText("ABOUT US", 128, 64);
+/** White door-label paper with `text` printed on it. */
+export function createTextLabelMat(text: string): THREE.MeshStandardMaterial {
+  const font = `800 76px ${redHatDisplay.style.fontFamily}`;
+  const map = createTextTexture(256, 128, [font], (ctx) => {
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, 256, 128);
+    ctx.fillStyle = "#111111";
+    ctx.font = font;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, 128, 60);
+  });
   return new THREE.MeshStandardMaterial({
-    map: new THREE.CanvasTexture(canvas),
+    map,
     roughness: 0.95,
     metalness: 0,
     envMapIntensity: 0,

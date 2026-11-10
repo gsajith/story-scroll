@@ -3,16 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import styles from "./LockerScene.module.css";
-import AboutNote from "./AboutNote";
+import StickyNote from "./StickyNote";
 import { CELL_W, CELL_H, FOV, CAMERA_Z, type Locker } from "../lib/locker/constants";
 import { setupLighting } from "../lib/locker/lighting";
 import { setupEnvironment } from "../lib/locker/environment";
 import { createLockerMaterials, createLockerGeometries } from "../lib/locker/materials";
 import { setupScene } from "../lib/locker/scene";
 import { addGapStrips } from "../lib/locker/gapStrips";
-import { buildLockerShell, buildDoorAssembly, createAboutUsLabelMat } from "../lib/locker/buildLocker";
-import { createSubmitButton } from "../lib/locker/submitButton";
-import { createCrumpledPaper } from "../lib/locker/crumpledPaper";
+import { buildLockerShell, buildDoorAssembly, createTextLabelMat } from "../lib/locker/buildLocker";
+import { createSubmitButton, SUBMIT_COLOR, SUBMIT_HOVER_COLOR } from "../lib/locker/submitButton";
+import { createStickyNote } from "../lib/locker/stickyNote";
 import { createBookStack } from "../lib/locker/book";
 import { createCameraPeek } from "../lib/locker/cameraPeek";
 import { attachGyroscope } from "../lib/locker/gyroscope";
@@ -73,15 +73,13 @@ export default function LockerScene({ bookCovers = [] }: { bookCovers?: string[]
     let submitBtnMesh: THREE.Mesh | null = null;
     let btnHovered = false;
     const btnScreenPos = new THREE.Vector3();
-    let paperGroup: THREE.Group | null = null;
-    let paperMesh: THREE.Mesh | null = null;
-    let paperHovered = false;
+    let noteMesh: THREE.Mesh | null = null;
     let mouseNX = 0.5, mouseNY = 0.5;
 
     const centerCol = Math.floor(COLS / 2);
     const centerRow = Math.floor(ROWS / 2);
     const centerIdx = centerRow * COLS + centerCol;
-    const aboutUsIdx = (centerRow - 1) * COLS + centerCol;
+    const psIdx = (centerRow - 1) * COLS + centerCol;
 
     // On mobile, optically center the submit-button locker. Portrait viewports
     // give a different COLS/ROWS parity, which drifts the center locker up to
@@ -114,14 +112,13 @@ export default function LockerScene({ bookCovers = [] }: { bookCovers?: string[]
         }
 
         const isSouthOfCenter = row === Math.floor(ROWS / 2) - 1 && col === Math.floor(COLS / 2);
-        const labelMat = isSouthOfCenter ? createAboutUsLabelMat() : labelPaperMat;
+        const labelMat = isSouthOfCenter ? createTextLabelMat("p.s.") : labelPaperMat;
         const pivot = buildDoorAssembly(group, silverMat, geos, doorMaterials, labelMat);
 
         if (isSouthOfCenter) {
-          const { group: pGroup, mesh: pMesh } = createCrumpledPaper();
-          paperGroup = pGroup;
-          paperMesh = pMesh;
-          group.add(pGroup);
+          const { group: noteGroup, mesh } = createStickyNote();
+          noteMesh = mesh;
+          group.add(noteGroup);
         }
 
         // ~70% of ordinary lockers hold 1–2 books leaning against a side wall.
@@ -150,7 +147,7 @@ export default function LockerScene({ bookCovers = [] }: { bookCovers?: string[]
 
     // --- Sequential door open on load ---
     lockers[centerIdx].locked = true;
-    const noRandomOpen = new Set([centerIdx, aboutUsIdx]);
+    const noRandomOpen = new Set([centerIdx, psIdx]);
     const extraCount = 3 + Math.floor(Math.random() * 2);
     const candidates = lockers.map((_, i) => i).filter((i) => !noRandomOpen.has(i));
     const openOrder: number[] = [centerIdx];
@@ -201,9 +198,8 @@ export default function LockerScene({ bookCovers = [] }: { bookCovers?: string[]
         .map((l) => l.pivot.children[0])
         .filter((c): c is THREE.Mesh => c instanceof THREE.Mesh);
 
-      if (paperMesh !== null && lockers[aboutUsIdx].isOpen) {
-        if (raycaster.intersectObject(paperMesh).length > 0) {
-          paperHovered = false;
+      if (noteMesh !== null && lockers[psIdx].isOpen) {
+        if (raycaster.intersectObject(noteMesh).length > 0) {
           setNoteOpen(true);
           return;
         }
@@ -259,18 +255,17 @@ export default function LockerScene({ bookCovers = [] }: { bookCovers?: string[]
         if (overButton !== btnHovered) {
           btnHovered = overButton;
           (submitBtnMesh.material as THREE.MeshStandardMaterial).color.set(
-            overButton ? 0x8a1e0d : 0xc23019,
+            overButton ? SUBMIT_HOVER_COLOR : SUBMIT_COLOR,
           );
         }
       }
 
-      let overPaper = false;
-      if (paperMesh !== null && lockers[aboutUsIdx].isOpen) {
-        overPaper = raycaster.intersectObject(paperMesh).length > 0;
-        if (overPaper !== paperHovered) paperHovered = overPaper;
-      }
+      const overNote =
+        noteMesh !== null &&
+        lockers[psIdx].isOpen &&
+        raycaster.intersectObject(noteMesh).length > 0;
 
-      mount.style.cursor = hits.length > 0 || overButton || overPaper ? "pointer" : "default";
+      mount.style.cursor = hits.length > 0 || overButton || overNote ? "pointer" : "default";
       mouseNX = nx;
       mouseNY = ny;
       peek.setFromMouse(nx, ny);
@@ -303,20 +298,6 @@ export default function LockerScene({ bookCovers = [] }: { bookCovers?: string[]
         const btnSY = (1 - btnScreenPos.y) / 2;
         submitButtonGroup.rotation.y += ((mouseNX - btnSX) * 1.6 - submitButtonGroup.rotation.y) * 0.06;
         submitButtonGroup.rotation.x += ((mouseNY - btnSY) * 1.35 - submitButtonGroup.rotation.x) * 0.06;
-      }
-
-      if (paperGroup !== null) {
-        const t = performance.now() * 0.001;
-        const restX = 0.25, restY = 0.04, restZ = 0.03;
-        if (paperHovered) {
-          paperGroup.rotation.x = restX + Math.sin(t * 12) * 0.022;
-          paperGroup.rotation.y = restY + Math.sin(t * 9 + 1.5) * 0.018;
-          paperGroup.rotation.z = restZ + Math.sin(t * 15 + 0.8) * 0.02;
-        } else {
-          paperGroup.rotation.x += (restX - paperGroup.rotation.x) * 0.06;
-          paperGroup.rotation.y += (restY - paperGroup.rotation.y) * 0.06;
-          paperGroup.rotation.z += (restZ - paperGroup.rotation.z) * 0.06;
-        }
       }
 
       renderer.render(scene, camera);
@@ -356,7 +337,7 @@ export default function LockerScene({ bookCovers = [] }: { bookCovers?: string[]
         className={styles.canvas}
         style={{ opacity: sceneReady ? 1 : 0 }}
       />
-      {noteOpen && <AboutNote exiting={noteExiting} onClose={closeNote} />}
+      {noteOpen && <StickyNote exiting={noteExiting} onClose={closeNote} />}
       {!sceneReady && (
         <div className={styles.loader}>
           <div className={styles.loaderSpinner} />

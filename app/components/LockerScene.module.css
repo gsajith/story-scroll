@@ -27,54 +27,59 @@
   animation: noteBackdropOut 0.38s ease forwards;
 }
 
-.noteArticle {
-  width: 85vw;
-  max-width: 760px;
-  max-height: 85vh;
-  background: #fdf9ee;
-  border-radius: 2px;
-  padding: 64px 72px;
-  overflow-y: auto;
-  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.15);
-  font-family: Georgia, "Times New Roman", serif;
+/* Brand blue ink on the tint of brand green that the 3D note renders as (see stickyNote.ts). */
+.stickyNote {
+  width: min(80vw, 420px);
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  /* em, not %: percentage padding would resolve against the full-width backdrop. */
+  padding: 0 0.8em;
+  background: linear-gradient(176deg, #a9bd3c 0%, #9eb233 100%);
+  color: #212592;
+  font-size: clamp(34px, 10.5vw, 56px);
+  font-weight: 700;
+  line-height: 1.12;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), 0 30px 50px -18px rgba(0, 0, 0, 0.6);
   position: relative;
+  transform: rotate(-2deg);
   animation: noteIn 0.42s cubic-bezier(0.34, 1.4, 0.64, 1);
 }
 
-.noteArticle.exiting {
+.stickyNote.exiting {
   animation: noteOut 0.38s cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+.stickyNote a {
+  color: inherit;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 5px;
+}
+
+.stickyNote a:focus-visible,
+.noteClose:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
 }
 
 .noteClose {
   position: absolute;
-  top: 20px;
-  right: 24px;
+  top: 6px;
+  right: 6px;
+  width: 44px;
+  height: 44px;
   background: none;
   border: none;
-  font-size: 24px;
-  cursor: pointer;
-  color: #999;
+  font: inherit;
+  font-size: 32px;
   line-height: 1;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.65;
 }
 
-.noteTitle {
-  font-size: 36px;
-  font-weight: normal;
-  margin-top: 0;
-  margin-bottom: 28px;
-  letter-spacing: 0.02em;
-  color: #1a1a1a;
-}
-
-.noteBody {
-  font-size: 17px;
-  line-height: 1.9;
-  color: #2c2c2c;
-  margin-bottom: 20px;
-}
-
-.noteBody:last-of-type {
-  margin-bottom: 0;
+.noteClose:hover {
+  opacity: 1;
 }
 
 /* Loader */
@@ -99,28 +104,17 @@
 /* Keyframes */
 @keyframes noteBackdropIn  { from { opacity: 0 } to { opacity: 1 } }
 @keyframes noteBackdropOut { from { opacity: 1 } to { opacity: 0 } }
-@keyframes noteIn  { from { opacity: 0; transform: scale(0.15) rotate(-8deg) } to { opacity: 1; transform: scale(1) rotate(-0.3deg) } }
-@keyframes noteOut { from { opacity: 1; transform: scale(1) rotate(-0.3deg) } to { opacity: 0; transform: scale(0.1) rotate(6deg) } }
+@keyframes noteIn  { from { opacity: 0; transform: scale(0.15) rotate(-10deg) } to { opacity: 1; transform: scale(1) rotate(-2deg) } }
+@keyframes noteOut { from { opacity: 1; transform: scale(1) rotate(-2deg) } to { opacity: 0; transform: scale(0.1) rotate(6deg) } }
 @keyframes spin    { to { transform: rotate(360deg) } }
 
-@media (max-width: 600px) {
-  .noteArticle {
-    padding: 32px 24px;
-    width: 92vw;
+/* Fade instead of the scale and spin. */
+@media (prefers-reduced-motion: reduce) {
+  .stickyNote {
+    animation: noteBackdropIn 0.3s ease;
   }
 
-  .noteTitle {
-    font-size: 26px;
-    margin-bottom: 18px;
-  }
-
-  .noteBody {
-    font-size: 15px;
-    line-height: 1.75;
-  }
-
-  .noteClose {
-    top: 12px;
-    right: 14px;
+  .stickyNote.exiting {
+    animation: noteBackdropOut 0.38s ease forwards;
   }
 }
