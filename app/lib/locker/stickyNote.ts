@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { caveat } from "../../fonts";
+import moleMark from "../../assets/mole-mark.png";
 import { LW, LH, BACK_INTERIOR_Z, BRAND_BLUE_ALBEDO } from "./constants";
 import { createTextTexture } from "./textTexture";
 
@@ -9,6 +10,13 @@ import { createTextTexture } from "./textTexture";
 const PAPER_ALBEDO = "#5d7e01";
 
 const LINES = ["Visit our", "Instagram", "@molelitmag", "to learn more."];
+
+// Canvas layout, in pixels of the 512 px texture. The mole mark sits in the top
+// right corner at 20% of the note's width, with the same margin to both edges.
+const SIZE = 512;
+const MARK_W = SIZE * 0.2;
+const MARK_H = MARK_W * (moleMark.height / moleMark.width);
+const MARK_MARGIN = 40;
 
 /**
  * Square sticky note stuck to the locker's back wall. The top edge is glued
@@ -26,22 +34,29 @@ export function createStickyNote(): { group: THREE.Group; mesh: THREE.Mesh } {
   }
   geo.computeVertexNormals();
 
+  const mark = new Image();
+  mark.src = moleMark.src;
+
   const font = `700 88px ${caveat.style.fontFamily}`;
-  const map = createTextTexture(512, 512, [font], (ctx) => {
+  const draw = (ctx: CanvasRenderingContext2D) => {
     ctx.fillStyle = PAPER_ALBEDO;
-    ctx.fillRect(0, 0, 512, 512);
+    ctx.fillRect(0, 0, SIZE, SIZE);
+    if (mark.complete && mark.naturalWidth > 0) {
+      ctx.drawImage(mark, SIZE - MARK_MARGIN - MARK_W, MARK_MARGIN, MARK_W, MARK_H);
+    }
     ctx.save();
     // Handwriting rarely sits level.
-    ctx.translate(256, 256);
+    ctx.translate(SIZE / 2, SIZE / 2);
     ctx.rotate(-0.04);
-    ctx.translate(-256, -256);
+    ctx.translate(-SIZE / 2, -SIZE / 2);
     ctx.fillStyle = BRAND_BLUE_ALBEDO;
     ctx.font = font;
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
-    LINES.forEach((line, i) => ctx.fillText(line, 58, 150 + i * 96));
+    LINES.forEach((line, i) => ctx.fillText(line, 52, 172 + i * 92));
     ctx.restore();
-  });
+  };
+  const map = createTextTexture(SIZE, SIZE, [font], draw, [mark]);
 
   const mesh = new THREE.Mesh(
     geo,

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
+import Image from "next/image";
+import moleMark from "../assets/mole-mark.png";
 import { caveat } from "../fonts";
 import styles from "./LockerScene.module.css";
 
@@ -32,6 +34,8 @@ export default function StickyNote({ exiting, onClose }: Props) {
         <button aria-label="Close" onClick={onClose} className={styles.noteClose}>
           ×
         </button>
+        {/* Decorative, so no alt text. `unoptimized` serves the 11 KB file as is. */}
+        <Image src={moleMark} alt="" unoptimized className={styles.noteMark} />
         <p id="note-text">
           Visit our Instagram{" "}
           <a
