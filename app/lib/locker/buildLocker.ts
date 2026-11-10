@@ -4,59 +4,47 @@ import type { LockerGeometries } from "./materials";
 import { redHatDisplay } from "../../fonts";
 import { createTextTexture } from "./textTexture";
 
+/**
+ * Adds the four walls to `group` and the back wall to `interior`. The walls stay
+ * visible when the door is closed, because neighbouring lockers' walls show
+ * through the gaps between doors. The back wall does not.
+ */
 export function buildLockerShell(
   group: THREE.Group,
+  interior: THREE.Group,
   bodyMat: THREE.MeshStandardMaterial,
   interiorBodyMat: THREE.MeshStandardMaterial,
-  { wallSideGeo, wallTopGeo, wallBackGeo }: LockerGeometries,
+  { wallsGeo, wallBackGeo }: LockerGeometries,
 ): void {
-  const add = (mesh: THREE.Mesh) => {
-    mesh.castShadow = mesh.receiveShadow = true;
-    group.add(mesh);
-    return mesh;
-  };
-  add(new THREE.Mesh(wallSideGeo, interiorBodyMat)).position.set(-LW / 2 + WALL_T / 2, 0, -LD / 2);
-  add(new THREE.Mesh(wallSideGeo, interiorBodyMat)).position.set(LW / 2 - WALL_T / 2, 0, -LD / 2);
-  add(new THREE.Mesh(wallTopGeo, interiorBodyMat)).position.set(0, LH / 2 - WALL_T / 2, -LD / 2);
-  add(new THREE.Mesh(wallTopGeo, interiorBodyMat)).position.set(0, -LH / 2 + WALL_T / 2, -LD / 2);
-  add(new THREE.Mesh(wallBackGeo, bodyMat)).position.set(0, 0, -LD + WALL_T / 2);
+  const walls = new THREE.Mesh(wallsGeo, interiorBodyMat);
+  walls.castShadow = walls.receiveShadow = true;
+  group.add(walls);
+
+  const back = new THREE.Mesh(wallBackGeo, bodyMat);
+  back.position.set(0, 0, -LD + WALL_T / 2);
+  back.castShadow = back.receiveShadow = true;
+  interior.add(back);
 }
 
 export function buildDoorAssembly(
   group: THREE.Group,
   silverMat: THREE.MeshStandardMaterial,
-  geos: LockerGeometries,
+  { doorGeo, doorHardwareGeo, labelFrameGeo, labelPaperGeo }: LockerGeometries,
   doorMaterials: THREE.Material[],
   labelMat: THREE.MeshStandardMaterial,
-): THREE.Group {
-  const {
-    doorGeo, handleBarGeo, handleGeo,
-    labelFrameGeo, labelPaperGeo,
-    doorHingeMatGeo, doorHingeGeo,
-  } = geos;
-
+): { pivot: THREE.Group; door: THREE.Mesh } {
   const pivot = new THREE.Group();
   pivot.position.set(-LW / 2, 0, DOOR_T / 2);
   group.add(pivot);
-
-  const addSilver = (mesh: THREE.Mesh) => {
-    mesh.castShadow = mesh.receiveShadow = true;
-    pivot.add(mesh);
-    return mesh;
-  };
 
   const door = new THREE.Mesh(doorGeo, doorMaterials);
   door.position.x = LW / 2;
   door.castShadow = door.receiveShadow = true;
   pivot.add(door);
 
-  addSilver(new THREE.Mesh(handleBarGeo, silverMat)).position.set(LW / 2, LH * -0.12, DOOR_T / 2 + 0.068);
-  addSilver(new THREE.Mesh(handleGeo, silverMat)).position.set(LW / 2 - 0.45, LH * -0.12, DOOR_T / 2);
-  addSilver(new THREE.Mesh(handleGeo, silverMat)).position.set(LW / 2 + 0.45, LH * -0.12, DOOR_T / 2);
-  addSilver(new THREE.Mesh(doorHingeGeo, silverMat)).position.set(LW * 0.065, LH * -0.32, DOOR_T * -0.7);
-  addSilver(new THREE.Mesh(doorHingeGeo, silverMat)).position.set(LW * 0.065, LH * 0.32, DOOR_T * -0.7);
-  addSilver(new THREE.Mesh(doorHingeMatGeo, silverMat)).position.set(LW * 0.115, LH * -0.32, DOOR_T * -0.55);
-  addSilver(new THREE.Mesh(doorHingeMatGeo, silverMat)).position.set(LW * 0.115, LH * 0.32, DOOR_T * -0.55);
+  const hardware = new THREE.Mesh(doorHardwareGeo, silverMat);
+  hardware.castShadow = hardware.receiveShadow = true;
+  pivot.add(hardware);
 
   const labelFrame = new THREE.Mesh(labelFrameGeo, silverMat);
   labelFrame.position.set(LW / 2, LH / 2 - LH * 0.25, DOOR_T / 2 + 0.009);
@@ -66,7 +54,7 @@ export function buildDoorAssembly(
   labelPaper.position.set(LW / 2, LH / 2 - LH * 0.25, DOOR_T / 2 + 0.0375);
   pivot.add(labelPaper);
 
-  return pivot;
+  return { pivot, door };
 }
 
 /** White door-label paper with `text` printed on it. */

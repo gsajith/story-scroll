@@ -15,12 +15,12 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - `redHatDisplay` (site font, set on `<html>` in `app/layout.tsx`) and `caveat` (sticky note handwriting), both from `next/font/google`. Canvas textures read `style.fontFamily` from these.
 
 ## Three.js lib (`app/lib/locker/`)
-- **`constants.ts`** — `LW=2.75`, `LH=2.0`, `LD=1`, `GAP=0.08`, `DOOR_T=0.1`, `WALL_T=0.03`, `CELL_W`, `CELL_H`, `FOV=30`, `CAMERA_Z=15`, `BACK_INTERIOR_Z=-0.97`, `BRAND_BLUE_ALBEDO` (see brand colour notes below), `Locker` type.
+- **`constants.ts`** — `LW=2.75`, `LH=2.0`, `LD=1`, `GAP=0.08`, `DOOR_T=0.1`, `WALL_T=0.03`, `CELL_W`, `CELL_H`, `FOV=30`, `CAMERA_Z=15`, `BACK_INTERIOR_Z=-0.97`, `BRAND_BLUE_ALBEDO` (see brand colour notes below), `Locker` type (`pivot`, `door`, `interior`, open state and angles).
 - **`scene.ts`** — `setupScene(mount)` → `{ scene, camera, renderer, width, height }`.
 - **`lighting.ts`** — `setupLighting(scene)`. Four directional lights: key (warm), fill (cool), rim, front.
 - **`environment.ts`** — `setupEnvironment(scene, renderer, manager)`. Loads `/environment.exr`; falls back to `RoomEnvironment`.
-- **`materials.ts`** — `createLockerMaterials()` → `{ bodyMat, silverMat, labelPaperMat, doorMaterials[] }`. `createLockerGeometries()` → `LockerGeometries` (shared across all lockers).
-- **`buildLocker.ts`** — `buildLockerShell(group, bodyMat, geos)`, `buildDoorAssembly(group, silverMat, geos, doorMaterials, labelMat)` → pivot, `createTextLabelMat(text)` → door-label material with printed text.
+- **`materials.ts`** — `createLockerMaterials()` → `{ bodyMat, interiorBodyMat, silverMat, labelPaperMat, doorMaterials[] }`, where `doorMaterials` is `[edge, front, inside]`. `createLockerGeometries()` → `LockerGeometries` (shared across all lockers): `wallsGeo` (four walls merged), `wallBackGeo`, `doorGeo` (three material groups), `doorHardwareGeo` (handle and hinges merged), `labelFrameGeo`, `labelPaperGeo`.
+- **`buildLocker.ts`** — `buildLockerShell(group, interior, bodyMat, interiorBodyMat, geos)` adds the walls to `group` and the back wall to `interior`. `buildDoorAssembly(group, silverMat, geos, doorMaterials, labelMat)` → `{ pivot, door }`. `createTextLabelMat(text)` → door-label material with printed text.
 - **`gapStrips.ts`** — `addGapStrips(scene, COLS, ROWS)`.
 - **`textTexture.ts`** — `createTextTexture(width, height, fonts, draw)` → `CanvasTexture`. Runs `draw` once immediately and again when the web fonts have loaded, so use it for any canvas text.
 - **`submitButton.ts`** — `createSubmitButton()` → `{ group, mesh }`. Matte brand blue body. The label is an unlit `MeshBasicMaterial` in `LABEL_COLOR` (`#bfdd3c`, a lighter tint of the brand green chosen for contrast), weight 900 plus a canvas stroke. Positioned inside the locker. Exports `SUBMIT_COLOR` and `SUBMIT_HOVER_COLOR` for the hover swap in `LockerScene.tsx`.
@@ -38,6 +38,18 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **Center locker**: `locked = true`; clicking jigles it. Contains floating submit button.
 - **p.s. locker** (south of center): "p.s." label, sticky note mesh. Clicking the note opens the `StickyNote` overlay.
 - **Others**: 3–4 random lockers open on load in a staggered setTimeout sequence.
+
+# Performance notes
+
+The scene's cost is draw calls, and every mesh is drawn twice (colour pass and shadow pass). Measured on a 4x CPU-throttled phone profile, the idle frame went from 260 calls and 7.5 ms to 153 calls and 3.1 ms with the rules below.
+
+- **Put locker contents in `interior`.** Each locker has an `interior` group (back wall, books, submit button, sticky note). The animation loop hides it while the door angle is under `CLOSED_ANGLE`, so closed lockers draw only their walls and door. Anything added straight to the locker `group` is drawn all the time.
+- **The four walls must stay visible.** Neighbouring lockers' walls show through the gaps between doors. Hiding them leaves white slivers at door edges.
+- **Merge parts that share a material and never move apart.** `wallsGeo` and `doorHardwareGeo` are built with `mergeGeometries`. A `BoxGeometry` with a material array costs one draw call per face group, so `doorGeo` folds its four edge faces into one group.
+- **Book covers upload one per frame** after loading (`coversToUpload` in `LockerScene.tsx`), so opening a door never waits on a texture upload.
+- **Asset sizes.** Covers in `public/book_covers/` are at most 512 px on the long side (a book is about 250 device px tall on a 2x laptop). `public/environment.exr` is 512x256 half-float. Resize new covers the same way: `magick in.jpg -resize '512x512>' -strip -quality 82 out.jpg`.
+- **Checking a change.** Compare against the production build (`next build && next start`), read `renderer.info.render.calls`, and screenshot before and after. `Math.random` has to be pinned to a constant for screenshots to match, because three.js uses it for every object's UUID and a seeded stream drifts.
+- **Not done.** Door, camera and button easing are per frame, not per second, so they run twice as fast on a 120 Hz display as on a 60 Hz one.
 
 # Brand colour notes
 

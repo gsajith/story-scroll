@@ -24,6 +24,9 @@ export const BRAND_BLUE_ALBEDO = "#050b64";
 
 export type Locker = {
   pivot: THREE.Group;
+  door: THREE.Mesh;
+  /** Back wall and contents: everything a closed door hides. */
+  interior: THREE.Group;
   isOpen: boolean;
   locked: boolean;
   targetAngle: number;

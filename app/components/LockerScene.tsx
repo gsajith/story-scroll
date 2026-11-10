@@ -17,6 +17,9 @@ import { createBookStack } from "../lib/locker/book";
 import { createCameraPeek } from "../lib/locker/cameraPeek";
 import { attachGyroscope } from "../lib/locker/gyroscope";
 
+// Below this door angle (radians) the gap is under a pixel, so the locker counts as closed.
+const CLOSED_ANGLE = 0.002;
+
 export default function LockerScene({ bookCovers = [] }: { bookCovers?: string[] }) {
   const mountRef = useRef<HTMLDivElement>(null);
   const [sceneReady, setSceneReady] = useState(false);
@@ -40,7 +43,15 @@ export default function LockerScene({ bookCovers = [] }: { bookCovers?: string[]
     const markReady = () => setSceneReady(true);
     let pendingItems = 1;
     const itemDone = () => { if (--pendingItems <= 0) markReady(); };
-    loadingManager.onLoad = () => { pendingItems = 0; markReady(); };
+    // Books behind closed doors are not drawn, so their covers would otherwise
+    // upload to the GPU on the frame a door first opens. The animation loop
+    // uploads one cover per frame after loading instead.
+    let coversToUpload: THREE.Texture[] = [];
+    loadingManager.onLoad = () => {
+      pendingItems = 0;
+      coversToUpload = bookTextures.slice();
+      markReady();
+    };
     loadingManager.onError = itemDone;
     const readyTimeout = setTimeout(markReady, 8000);
     void itemDone; // referenced only as onError handler
@@ -101,24 +112,26 @@ export default function LockerScene({ bookCovers = [] }: { bookCovers?: string[]
           0,
         );
 
-        buildLockerShell(group, bodyMat, interiorBodyMat, geos);
+        const interior = new THREE.Group();
+        group.add(interior);
+        buildLockerShell(group, interior, bodyMat, interiorBodyMat, geos);
 
         const isCenter = row === Math.floor(ROWS / 2) && col === Math.floor(COLS / 2);
         if (isCenter) {
           const { group: btnGroup, mesh: btnMesh } = createSubmitButton();
           submitButtonGroup = btnGroup;
           submitBtnMesh = btnMesh;
-          group.add(btnGroup);
+          interior.add(btnGroup);
         }
 
         const isSouthOfCenter = row === Math.floor(ROWS / 2) - 1 && col === Math.floor(COLS / 2);
         const labelMat = isSouthOfCenter ? createTextLabelMat("p.s.") : labelPaperMat;
-        const pivot = buildDoorAssembly(group, silverMat, geos, doorMaterials, labelMat);
+        const { pivot, door } = buildDoorAssembly(group, silverMat, geos, doorMaterials, labelMat);
 
         if (isSouthOfCenter) {
           const { group: noteGroup, mesh } = createStickyNote();
           noteMesh = mesh;
-          group.add(noteGroup);
+          interior.add(noteGroup);
         }
 
         // ~70% of ordinary lockers hold 1–2 books leaning against a side wall.
@@ -137,13 +150,14 @@ export default function LockerScene({ bookCovers = [] }: { bookCovers?: string[]
           const covers = Array.from({ length: count }, () =>
             pool.splice(Math.floor(Math.random() * pool.length), 1)[0],
           );
-          group.add(createBookStack(covers));
+          interior.add(createBookStack(covers));
         }
 
         scene.add(group);
-        lockers.push({ pivot, isOpen: false, locked: false, targetAngle: 0, currentAngle: 0 });
+        lockers.push({ pivot, door, interior, isOpen: false, locked: false, targetAngle: 0, currentAngle: 0 });
       }
     }
+    const doorMeshes = lockers.map((l) => l.door);
 
     // --- Sequential door open on load ---
     lockers[centerIdx].locked = true;
@@ -194,9 +208,6 @@ export default function LockerScene({ bookCovers = [] }: { bookCovers?: string[]
       pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(pointer, camera);
 
-      const doorMeshes = lockers
-        .map((l) => l.pivot.children[0])
-        .filter((c): c is THREE.Mesh => c instanceof THREE.Mesh);
 
       if (noteMesh !== null && lockers[psIdx].isOpen) {
         if (raycaster.intersectObject(noteMesh).length > 0) {
@@ -244,9 +255,6 @@ export default function LockerScene({ bookCovers = [] }: { bookCovers?: string[]
       pointer.y = -(ny * 2 - 1);
       raycaster.setFromCamera(pointer, camera);
 
-      const doorMeshes = lockers
-        .map((l) => l.pivot.children[0])
-        .filter((c): c is THREE.Mesh => c instanceof THREE.Mesh);
       const hits = raycaster.intersectObjects(doorMeshes);
 
       let overButton = false;
@@ -285,6 +293,8 @@ export default function LockerScene({ bookCovers = [] }: { bookCovers?: string[]
           locker.currentAngle += diff * 0.09;
           locker.pivot.rotation.y = locker.currentAngle;
         }
+        // A closed door hides the back wall and the contents, so skip drawing them.
+        locker.interior.visible = locker.currentAngle < -CLOSED_ANGLE;
       }
 
       peek.update();
@@ -299,6 +309,9 @@ export default function LockerScene({ bookCovers = [] }: { bookCovers?: string[]
         submitButtonGroup.rotation.y += ((mouseNX - btnSX) * 1.6 - submitButtonGroup.rotation.y) * 0.06;
         submitButtonGroup.rotation.x += ((mouseNY - btnSY) * 1.35 - submitButtonGroup.rotation.x) * 0.06;
       }
+
+      const cover = coversToUpload.pop();
+      if (cover) renderer.initTexture(cover);
 
       renderer.render(scene, camera);
     };
