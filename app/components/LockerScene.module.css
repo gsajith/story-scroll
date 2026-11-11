@@ -62,10 +62,20 @@
   outline-offset: 3px;
 }
 
+/* Top right corner, 20% of the note's width, same margin to both edges. */
+.noteMark {
+  position: absolute;
+  top: 7.5%;
+  right: 7.5%;
+  width: 20%;
+  height: auto;
+}
+
+/* Sits just above the note's corner, on the dark backdrop, to leave the corner for the mark. */
 .noteClose {
   position: absolute;
-  top: 6px;
-  right: 6px;
+  top: -48px;
+  right: -8px;
   width: 44px;
   height: 44px;
   background: none;
@@ -74,8 +84,8 @@
   font-size: 32px;
   line-height: 1;
   cursor: pointer;
-  color: inherit;
-  opacity: 0.65;
+  color: #fff;
+  opacity: 0.8;
 }
 
 .noteClose:hover {

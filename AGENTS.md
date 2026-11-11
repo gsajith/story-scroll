@@ -1,14 +1,18 @@
 <!-- BEGIN:nextjs-agent-rules -->
-# This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
+## This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
 <!-- END:nextjs-agent-rules -->
 
 # LockerScene file map
 
 ## React components (`app/components/`)
 - **`LockerScene.tsx`** — top-level component (~200 lines). Owns React state (`sceneReady`, `noteOpen`, `noteExiting`), wires all lib functions together inside one `useEffect`, runs the animation loop, and handles click/hover/touch/resize events.
-- **`StickyNote.tsx`** — accessible JSX dialog (`role="dialog"`, `aria-modal`, `aria-labelledby`) styled as a green sticky note in the Caveat handwriting font. Links `@molelitmag` to Instagram. Handles its own Escape key via internal `useEffect([onClose])`. Mounted only when `noteOpen` is true.
+- **`StickyNote.tsx`** — accessible JSX dialog (`role="dialog"`, `aria-modal`, `aria-labelledby`) styled as a green sticky note in the Caveat handwriting font. Links `@molelitmag` to Instagram and shows the mole mark in the top right corner. The close button sits just above that corner, outside the note. Handles its own Escape key via internal `useEffect([onClose])`. Mounted only when `noteOpen` is true.
 - **`LockerScene.module.css`** — all styles: wrapper, canvas, sticky note overlay and its animations (`noteBackdropIn/Out`, `noteIn/Out`, a plain fade under `prefers-reduced-motion`), loader/spinner.
 
 ## Fonts (`app/fonts.ts`)
@@ -22,7 +26,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **`materials.ts`** — `createLockerMaterials()` → `{ bodyMat, interiorBodyMat, silverMat, labelPaperMat, doorMaterials[] }`, where `doorMaterials` is `[edge, front, inside]`. `createLockerGeometries()` → `LockerGeometries` (shared across all lockers): `wallsGeo` (four walls merged), `wallBackGeo`, `doorGeo` (three material groups), `doorHardwareGeo` (handle and hinges merged), `labelFrameGeo`, `labelPaperGeo`.
 - **`buildLocker.ts`** — `buildLockerShell(group, interior, bodyMat, interiorBodyMat, geos)` adds the walls to `group` and the back wall to `interior`. `buildDoorAssembly(group, silverMat, geos, doorMaterials, labelMat)` → `{ pivot, door }`. `createTextLabelMat(text)` → door-label material with printed text.
 - **`gapStrips.ts`** — `addGapStrips(scene, COLS, ROWS)`.
-- **`textTexture.ts`** — `createTextTexture(width, height, fonts, draw)` → `CanvasTexture`. Runs `draw` once immediately and again when the web fonts have loaded, so use it for any canvas text.
+- **`textTexture.ts`** — `createTextTexture(width, height, fonts, draw, images?)` → `CanvasTexture`. Runs `draw` once immediately and again when the web fonts and any images have loaded, so use it for any canvas text.
 - **`submitButton.ts`** — `createSubmitButton()` → `{ group, mesh }`. Matte brand blue body. The label is an unlit `MeshBasicMaterial` in `LABEL_COLOR` (`#bfdd3c`, a lighter tint of the brand green chosen for contrast), weight 900 plus a canvas stroke. Positioned inside the locker. Exports `SUBMIT_COLOR` and `SUBMIT_HOVER_COLOR` for the hover swap in `LockerScene.tsx`.
 - **`stickyNote.ts`** — `createStickyNote()` → `{ group, mesh }`. Square green sticky note on the back wall with the handwritten Instagram message. See sticky note notes below.
 - **`book.ts`** — `createBookStack(coverTextures[])` → `THREE.Group`. 1–2 upright hardcover books, turned so the cover art angles toward the open side, slightly leaning against a random side wall. `buildBook()` constructs each book in a local frame (cover art on +Z front board, bound spine on -X, fore-edge on +X): front/back cover boards overhang an inset cream page block (striated edges via a shared `CanvasTexture`), plus a per-book textured spine (binding colour + faint bands/title). Thickness `bt ≈ 0.07–0.30` (biased thin, varied). Positioned near the back wall so it stays hidden behind a closed door. Cover filenames are read server-side in `app/page.tsx` from `public/book_covers/` and passed to `LockerScene` as the `bookCovers` prop; textures load through the `LoadingManager`. ~70% of ordinary lockers get a stack (center submit + p.s. lockers excluded).
@@ -69,4 +73,5 @@ All values in `app/lib/locker/stickyNote.ts`.
 - Square, `side = LH * 0.58`, stuck to the back wall at `BACK_INTERIOR_Z + 0.006` with `rotation.z = -0.045`.
 - The top edge is flat against the wall. Vertices peel toward the viewer by `down² × (0.11 + across × 0.05)`, so the bottom-right corner lifts most. Never use a negative Z offset: it would push the paper through the back wall.
 - Paper is `PAPER_ALBEDO` (`#5d7e01`), which renders as `#a9bd3c`, a lighter tint of the brand green. Ink is `BRAND_BLUE_ALBEDO`. `.stickyNote` in `LockerScene.module.css` uses the rendered hexes (`#a9bd3c` paper, `#212592` ink), so change them together.
+- The mole mark (`app/assets/mole-mark.png`, black on transparent, trimmed to the artwork) sits in the top right corner at 20% of the note's width with equal top and right margins. The canvas uses `MARK_W` and `MARK_MARGIN`; the overlay uses `.noteMark`. Change both together.
 - The message is typed twice: `LINES` here (manual line breaks for the canvas) and the paragraph in `StickyNote.tsx`.
