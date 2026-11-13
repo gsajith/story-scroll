@@ -18,6 +18,13 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## Fonts (`app/fonts.ts`)
 - `redHatDisplay` (site font, set on `<html>` in `app/layout.tsx`) and `caveat` (sticky note handwriting), both from `next/font/google`. Canvas textures read `style.fontFamily` from these.
 
+## Search and sharing (`app/site.ts`, `app/layout.tsx`, `app/page.tsx`)
+- **`site.ts`** — the domain, site name (also the page title), description, and the submission form and Instagram URLs. Everything else imports from here.
+- **`layout.tsx`** — `metadata`: canonical URL, Open Graph and Twitter tags.
+- **`page.tsx`** — the scene is a canvas, so the page also renders an `h1`, one sentence and real links to the form and Instagram (`.about` in `page.module.css`). The block is visually hidden and appears as a card when a link has keyboard focus. Keep it in step with what the scene shows. Also renders the Organization and WebSite JSON-LD.
+- **`opengraph-image.jpg`** (1200x630) and **`opengraph-image.alt.txt`** — the link preview image, a screenshot of the scene with the submit and p.s. lockers open. Retake it after a visible change to the scene.
+- **`robots.txt`**, **`sitemap.xml`** — static, with the domain written out.
+
 ## Three.js lib (`app/lib/locker/`)
 - **`constants.ts`** — `LW=2.75`, `LH=2.0`, `LD=1`, `GAP=0.08`, `DOOR_T=0.1`, `WALL_T=0.03`, `CELL_W`, `CELL_H`, `FOV=30`, `CAMERA_Z=15`, `BACK_INTERIOR_Z=-0.97`, `BRAND_BLUE_ALBEDO` (see brand colour notes below), `Locker` type (`pivot`, `door`, `interior`, open state and angles).
 - **`scene.ts`** — `setupScene(mount)` → `{ scene, camera, renderer, width, height }`.

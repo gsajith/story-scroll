@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import Image from "next/image";
 import moleMark from "../assets/mole-mark.png";
 import { caveat } from "../fonts";
+import { INSTAGRAM_URL } from "../site";
 import styles from "./LockerScene.module.css";
 
 type Props = {
@@ -39,7 +40,7 @@ export default function StickyNote({ exiting, onClose }: Props) {
         <p id="note-text">
           Visit our Instagram{" "}
           <a
-            href="https://www.instagram.com/molelitmag/"
+            href={INSTAGRAM_URL}
             target="_blank"
             rel="noopener noreferrer">
             @molelitmag
