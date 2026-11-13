@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import styles from "./LockerScene.module.css";
 import StickyNote from "./StickyNote";
+import { SUBMIT_URL } from "../site";
 import { CELL_W, CELL_H, FOV, CAMERA_Z, type Locker } from "../lib/locker/constants";
 import { setupLighting } from "../lib/locker/lighting";
 import { setupEnvironment } from "../lib/locker/environment";
@@ -217,7 +218,7 @@ export default function LockerScene({ bookCovers = [] }: { bookCovers?: string[]
       }
 
       if (submitBtnMesh !== null && raycaster.intersectObject(submitBtnMesh).length > 0) {
-        window.open("https://docs.google.com/forms/d/e/1FAIpQLSfkKYi903i5ibpswfs8ayorc0DKQTejqBKRe4MB7ME9p-jAeQ/viewform?usp=header", "_blank");
+        window.open(SUBMIT_URL, "_blank");
         return;
       }
 
